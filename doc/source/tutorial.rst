@@ -8,12 +8,14 @@ Part I: Preprocessing Your Data
 ================================
 
 Step 1: Creating your Input File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~	
+.. note:: MEAP also allows the user to input individual files one-by-one. However, when 
+	batch processing data we recommend creating an input file as specified below. For more
+	on importing files individually, see Step 2: Importing & Mapping the Channels below. 
 
-The first step is to tell MEAP where the data you want to analyze is stored. MEAP can 
-accomodate both AcqKnowledge (``.acq``) and matlab (``.mat``) files. 
-
-Each file should contain the cardiovascular reactivity data collected from one participant 
+The first step is to create an input file that tells MEAP where the data you want to analyze is stored. 
+MEAP can accomodate both AcqKnowledge (``.acq``) and matlab (``.mat``) files. Each file should 
+contain the cardiovascular reactivity data collected from one participant 
 including electrocardiogram (ECG), impedance (IKG), blood pressure (BP) waveforms , and
 respiration (optional). Data must be collected continuously and sampled at at least 1,000 HZ. 
 
@@ -23,23 +25,30 @@ In addition to the data file(s) you are scoring, you will need to create a comma
 text file (.csv) or excel file (.xlsx) that contains the path to each data file to be scored. 
 This file will be used to import the data for initial preprocessing. Later you will create 
 a design file that contains information specific to your experimental design and analysis 
-method. This initial input file MUST contain the following columns labeled as such:
+method. This initial input file MUST contain the columns containing the following
+information labeled as such:
 
 	1. **File** - specify the full path to each file to be scored
-	2. **electrode_distance_front** - the distance between impedance electrodes on the front of the torso. 
-	3. **electrode_distance_back** - the distance between impedance electrodes on the back of the torso. 
+	2. Inter-electrode distances- 
+	
+			A. When using a mylar band configuration label columns:
+			  **electrode_distance_front** - the distance between impedance electrodes on the front of the torso. 
+			  
+			  **electrode_distance_back** - the distance between impedance electrodes on the back of the torso. 
+			B. When using a spot electrode configuration label columns:
+			  **electrode_distance_left** 
+				 
+			  **electrode_distance_right** and enter the corresponding measurements.
 
 .. note:: All measurements must be in centimeters.
 
-Front and back distances are for mylar band electrodes. If using spot electrodes 
-to collect data, title your columns **electrode_distance_left** and **electrode_distance_right**
-and enter the corresponding measurements. For a complete list of input file options 
+For a complete list of input file options 
 see :ref:`participant-parameters`.
 
 Here is an example input file:
 
 .. figure:: _static/input_excel_file.png
-   :scale: 30 %
+   :scale: 80 %
    :alt: excel input file
    :align: center
    
@@ -55,22 +64,32 @@ populate the rest of the file paths.
 	MEAP has to load at one time and can prevent the program or your computer from crashing 
 	or running slowly. 
    
-When you launch MEAP, information from this spreadsheet will be called and a window will 
-appear that contains all of your files to be scored which also serves as the primary user
-interface. Files to be processed appear in white. Once you finish the preprocessing pipeline
-and save as .meap file, the row will turn blue. 
+
+Step 2: Importing Data & Mapping the Channels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When you launch MEAP, you will see a window that looks like this:
+
+.. figure:: _static/preproc_launch1.png
+   :scale: 80 %
+   :alt: preprocessing launch screen
+   :align: center 
+
+Click on the folder in the upper right corner to navigate to your input file. Information 
+from this spreadsheet will be called and a window will appear that contains all of your files 
+to be scored and also serves as the primary user interface. Files to be processed appear in white. 
+Once you finish the preprocessing pipeline and save as ``.mea.mat`` file, the row will turn light blue. 
+The file currently being processed appears in dark blue. 
+
+To import files individually, right click within the "Input Physio file" portion of the 
+window and select **Add New Item**. 
 
   .. figure:: _static/preproc_window.png
    :scale: 80 %
    :alt: preprocessing window
    :align: center 
    
-
-Step 2: Importing Data & Mapping the Channels
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 Now select the first file you would like to process. Then click on the **Import data** 
-button at the bottom of the screen to begin preprocessing.
+button at the right of the screen to begin preprocessing.
 
 .. figure:: _static/import_data.png
    :scale: 60 %
@@ -82,7 +101,7 @@ channel contains each data source. This is achieved by specifying the data conta
 within each channel using this GUI: 
 
 .. figure:: _static/import_channels.png
-   :scale: 80 %
+   :scale: 40 %
    :alt: import channels
    :align: center
 
@@ -91,7 +110,7 @@ specified in the dropdown menus on the right.  If blood pressure data was collec
 a wireless blood pressure system or other system that generates separate channels for 
 diastolic and systolic blood pressure, map each of these accordingly; systolic and diastolic 
 are both options in the drop down menu. Any remaining channels that you do not wish to 
-import data from should be set to **None**. 
+import data from should be set to *None*. 
 
 Regardless, of the number of channels that appear in the ``.acq`` file and their names, you 
 should have the following four channels mapped: 
@@ -108,14 +127,20 @@ measurements. The front and back measures are imported directly from your input 
 any other information you specified including height, weight, respiration circumference, 
 and whether data was collected during Magnetic Resonance Imaging (MRI). This latter 
 specification in critical as MEAP utilizes a customized point-marking algorithm for data
-collected within the scanner. For more information on these parameters and how to specify
-them in your input file see :ref:`participant-parameters`.
+collected within the scanner. 
 
 .. figure:: _static/measurements.png
-   :scale: 80 %
+   :scale: 40 %
    :alt: participant measurements
    :align: center
-	
+
+When importing files individually you MUST manually enter the participant measurements here.
+These values can also be edited after the fact by clicking on the **Subject Info** button. 
+
+For more information on these parameters and how to specify them in your input file 
+see :ref:`participant-parameters`.
+
+
    
 Step 3: Check the Quality of Your Waveforms
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -135,23 +160,34 @@ MEAP will load and display the data in a GUI like this:
    :alt: inspect all acq data
    :align: center
 
-.. note:: This example does not include respiration data. If you have respiration data this
-	will appear here as well. 
-
-This feature is designed to allow the user to check the quality of the data and flag any 
-segments of data that contain noise or artifacts or that the researcher would like to 
-exclude from analyses for whatever reason. Flagged sections will then be removed from 
-all future analysis steps including point marking and ensemble averaging. 
+This feature is designed to allow the user to check the quality of the data, remove outliers, 
+and flag any segments of data that contain noise or artifacts or that the researcher would 
+like to exclude from analyses for whatever reason. Flagged sections will then be removed from 
+all future analysis steps including point marking and ensemble or moving ensemble averaging. 
 
 .. Warning:: It is critical that all data included in calculations be as clean as possible. 
 	Attempting to analyze data with significant artifacts will not yield interpretable values. 
 
-First, use the *Window size* slider at the bottom of the screen to select a widow size that 
-optimizes viewing your data. 
+**Windsorizing: Removing Extreme Outliers** 
 
-**Like so:**
+The first thing to do when inspecting your data is to Windsorize outliers, if necessary. 
+For example, the Z0 signal drops to zero at the beginning or end of a file leading the wave 
+form to appear small and uncentered in the window. Such extreme outliers can be removed by
+selecting the **Windsorize** button next to the waveform that contains outliers and 
+setting the maximum and minimum cutoffs for outliers. For example, setting both the max 
+and min values to .005 means that you are pulling in the top and bottom 0.5% of the data
+to just inside that cutoff. You may need to adjust one or both of these parameters depending
+on the outliers contained within your data. 
 
-.. figure:: _static/badzoom.png
+**Censor Regions: Removing Noise & Aritfacts**
+
+Next, use the *Window size* slider at the bottom of the screen to select a widow size that 
+optimizes viewing your data. We recommend a window size of between 20 and 60 seconds to 
+allow the user to clearly visualize each waveform and inspect it for anomalies. 
+
+Like so:
+
+.. figure:: _static/zoom.png
    :scale: 70 %
    :alt: acq data source- zoom
    :align: center
@@ -215,14 +251,33 @@ Step 4: Processing Respiration Data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you collected respiration data as part of your study MEAP can calculate the number of
-breaths. If you do not have or did not import respiration data simply skip this step. 
+breaths. 
 
 .. figure:: _static/process_resp.png
-   :scale: 80 %
+   :scale: 50 %
    :alt: process respiration
    :align: center
 
-**This feature requires improvements**
+
+.. figure:: _static/resp_1.png
+   :scale: 50 %
+   :alt: respiration 1
+   :align: center
+
+MEAP can also calculate breath rate from the ICG data. Additionally, by processing respiration
+in this way the user can remove the low frequency fluctuation in ICG signals due to respiration
+rather than changes in blood flow. Because the torso expands with each inhalation, the respiration
+cycle impacts respiration in ways that may or may not be of interest to the researcher. 
+
+.. figure:: _static/resp_2.png
+   :scale: 50 %
+   :alt: respiration 2
+   :align: center
+   
+.. figure:: _static/resp_3.png
+   :scale: 50 %
+   :alt: respiration 3
+   :align: center 
 
 
 Step 5: Detecting R-Peaks 
@@ -243,30 +298,26 @@ Each R peak on the ECG wave is marked with a black square.
 Again, the sliders below the displayed data allow the user to scroll through the 
 file and change the window size.
 
-If you censored data on any of the waveforms in the previous step, the R-peaks that fall 
-within this region will be ignored. For example, below you see a file in which the region
-falling roughly between 517 and 522 seconds was censored. R-peaks were therefore not marked
-within this region. 
+.. figure::  _static/qrs_zoom.png
+   :scale: 80%
+   :alt: no R-peaks in censored regions
+   :align: center
+
+If you censored any ECG data in the previous step, the R-peaks that fall 
+within this region will be ignored. R-peaks in regions censored due to noise in other signals will 
+still be detected. 
 
 .. figure::  _static/removed_qrs.png
    :scale: 80%
    :alt: no R-peaks in censored regions
    :align: center
 
-The bottom right corner of this window displays an image of all detected R-peaks lined up
-and stacked next to one another:
-
-.. figure::  _static/big_t_wave.png
-   :scale: 80%
-   :alt: no R-peaks in censored regions
-   :align: center
-
-Clicking and mousing over this window changes the viewing angle allowing the researcher to 
-visualize the shape of each heartbeat and quickly get a sense of the consistency and quality 
-of the data. In this example you can see that there was some variability in the amplitude of
-the t-wave. This is not an issue and reflects variability of interest. What is critical is
-that no false R-peaks are being detected. These will be evident by extraneous sharp peaks
-in this image.  
+The bottom right corner of this window displays a topographical image of all detected R-peaks.
+This image displays all R-peaks aligned with one another and viewed from above. The peak of
+each waveform appears in red while troughs appear in blue. This image allows the user to 
+easily visualize the data and whether R-peaks have been correctly detected. When R-peaks are
+incorrectly marked, this image will apear jumbled rather than stripes of color corresponding
+to the topography of the canonical ECG waveform. 
 
 In most cases the default settings will allow for accurate detection of each R-peak. 
 Depending on the noisiness of the data and/or idiosyncratic differences in waveform shape, 
@@ -296,7 +347,8 @@ data* step above.
 .. Note:: For more information on the Pan-Tompkins method and parameter options, 
 	see the :ref:`beat-detector` section of this documentation. 
 
-		  
+
+You can also mark individual R-peaks as needed by right clicking where you wish to an R-point. 
 
 Step 6: Marking Custom Points
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
