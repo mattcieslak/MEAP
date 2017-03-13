@@ -1,0 +1,47 @@
+# -*- mode: python -*-
+import sys
+sys.path.append(".")
+from deps2 import imports
+
+block_cipher = None
+a = Analysis(['..\\MEAPapp.py'],
+             pathex=['C:\\Users\\Conda\\MEAP'],
+             binaries=[],
+             datas=[],
+             hiddenimports=imports,
+             hookspath=[],
+             runtime_hooks=["rthook_pyqt4.py","rthook_pyface.py"],
+             excludes=['matplotlib', 'IPython','FixTk', 'tcl', 'zmq',
+                          'tk', '_tkinter', 'tkinter', 'Tkinter'],
+             win_no_prefer_redirects=False,
+             win_private_assemblies=False,
+             cipher=block_cipher)
+             
+a.datas += [
+          ('resources\\logo512x512.png',
+          'C:\\Users\\Conda\\MEAP\\meap\\resources\\logo512x512.png','DATA')
+]
+
+pyz = PYZ(a.pure, a.zipped_data,
+             cipher=block_cipher)
+
+# Add the icons
+icon_tree = Tree("..\\meap\\resources", prefix="resources")
+a.datas += icon_tree
+
+
+exe = EXE(pyz,
+          a.scripts,
+          exclude_binaries=True,
+          name='MEAP.exe',
+          debug=False,
+          strip=None,
+          upx=True,
+          console=True )
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               strip=None,
+               upx=True,
+               name='MEAP')
