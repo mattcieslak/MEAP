@@ -18,6 +18,8 @@ a = Analysis(['..\\MEAPapp.py'],
              cipher=block_cipher)
              
 a.datas += [
+          ('resources\\meap.png',
+          'C:\\Users\\Conda\\MEAP\\meap\\resources\\meap.png','DATA'),
           ('resources\\logo512x512.png',
           'C:\\Users\\Conda\\MEAP\\meap\\resources\\logo512x512.png','DATA')
 ]

@@ -21,7 +21,7 @@ a = Analysis(['../MEAPapp.py'],
              
 a.datas += [
           ('resources/logo512x512.png',
-          '/Users/matt/projects/MEAP/meap/resources/logo512x512.png','DATA')
+          '/Users/matt/projects/MEAP/meap/resources/logo512x512.png','DATA'),
           ('resources/meap.png',
           '/Users/matt/projects/MEAP/meap/resources/meap.png','DATA')
 ]
