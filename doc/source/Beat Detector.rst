@@ -21,8 +21,9 @@ and marks these as R-peaks.
 The beat detector GUI allows you to: 
 
 	1. Edit the parameters of a modified Pan Tomkins QRS detector 
-	2. Set the window of time (in seconds) before and after each heartbeat within which 
-		the other points (i.e. b, x, t) should fall. 
+	2. Manually add R-peaks
+	3. Manually remove R-peaks
+
 		  
 **The Pan-Tompkins Method**
 
@@ -55,17 +56,3 @@ refer to the filters applied in the Pan-Tomkins beat detector and are as follows
 	be adjusted from its default value of 0.001 to optimize peak detection. Lower values 
 	increase sensitivity and should be used when peaks are missed using the defaults. 
 
-The bottom right corner of this window displays an image of all detected R-peaks lined up
-and stacked next to one another. By clicking and mousing over this window, the researcher
-can visualize the shape of each heartbeat and quickly get a sense of the consistency and
-quality of the data.
-
-**Extracting Waveforms**
-
-The parameters listed under **waveform extraction parameters** refer to the windows of
-time surrounding each R-peak within which the other relevant points on each of the 
-waveforms are to be found. The values are specified for each waveform in seconds before 
-and after the R-peak. The default settings (displayed above) are based on the typical 
-temporal arrangement of cardiovascular events, but may be adjusted by the researcher 
-where necessary. The parameters specified here are utilized in the next step, 
-**Point Marking**.  
