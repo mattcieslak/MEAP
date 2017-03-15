@@ -279,7 +279,7 @@ interest to the researcher.
 Select **Process Resp**: 
 
 .. figure:: _static/process_resp.png
-   :scale: 50 %
+   :scale: 80 %
    :alt: process respiration
    :align: center
 
@@ -325,6 +325,13 @@ Step 5: Detecting R-Peaks
 
 Now that you have loaded your data, checked its quality, and removed areas of artifact, 
 the next step is to detect each heartbeat. Click on the **Detect QRS Complexes** button.
+
+.. figure::  _static/detect_qrs.png
+   :scale: 80%
+   :alt: Detecting R-Peaks
+   :align: center
+
+
 MEAP automatically detects each R-peak using a modified Pan-Tomkins algoritm (for more 
 information on the Pan-Tompkins method see :ref:`beat-detector`) 
 
@@ -347,7 +354,7 @@ If you censored any ECG data in the previous step, the R-peaks that fall
 within this region will be ignored. R-peaks in regions censored due to noise in other signals will 
 still be detected. 
 
-.. figure::  _static/removed_qrs.png
+.. figure::  _static/censored_qrs.png
    :scale: 80%
    :alt: no R-peaks in censored regions
    :align: center
@@ -374,17 +381,22 @@ to .1 does the trick. Don't forget if you sensored regions previously, R-peaks t
 within these regions will not be marked. 
 
 If there is an R-peak that is incorrectly marked due to noise that you missed in the 
-previous step, you can remove this point now. Simply click within the portion of the window
+previous step, you can remove this point now. Hold down the right-click button and mouse 
+over the R-peaks you wish to delete, then right click again within that region to remove 
+those point markings. 
+
+Simply click within the portion of the window
 displaying each R-peak. The squares marking these will change from black to yellow. Use the
 mouse to highlight the are surrounding any points you want to remove (just like in the *edit
 data* step above.
 
-.. figure::  _static/edit_r_peaks.png
-   :scale: 50%
+.. figure::  _static/edited_r_peaks.png
+   :scale: 80%
    :alt: no R-peaks in censored regions
    :align: center
 
-You can also mark individual R-peaks as needed by right clicking where you wish to an R-point. 
+You can also mark individual R-peaks as needed by highlighting the peak you wish using the 
+left-click button on your mouse. 
 	
 .. Note:: For more information on the Pan-Tompkins method and parameter options, 
 	see the :ref:`beat-detector` section of this documentation. 
@@ -393,28 +405,40 @@ You can also mark individual R-peaks as needed by right clicking where you wish 
 Step 6: Marking Custom Points
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This window displays an ensemble averaged waveform for the entire data file. Using a classifier
-derived from previous data, MEAP has attempted to mark each of the relevant inflection points
-on this waveform. For each point, the relative timing and point type are listed in the left panel. 
+The next step is to provide MEAP with information about where to look for inflection points 
+of interest in this subject's file. 
 
-**For Example:**
+.. figure::  _static/mark_points.png
+   :scale: 80%
+   :alt: marking custom points
+   :align: center
 
-.. figure::  _static/global_ens_avg.png
-   :scale: 50%
+Clicking the **Label Waveform Points** button brings up a window displaying an ensemble 
+averaged waveform for the entire data file. The **ICG Editor** tab shows the dz/dt wave 
+produced by ensemble averaging the entire file (excluding any censored regions). The full 
+dz/dt signal as well as it's first and second derivatives are displayed along side a zoomed-in
+view of the R to C portion of the dz/dt wave. These features are designed to assist the user
+in selecting the B-point on the ensemble averaged waveform. By hovering over any of these images, the 
+dashed line indicating the b-point crossing can be adjusted to the desired position. 
+
+.. figure::  _static/b_priors.png
+   :scale: 80%
+   :alt: marking ensembled b-point
+   :align: center
+
+The **All Signals** tab displays the ensemble averaged waveforms for all physiological signals 
+(except respiration) across the entire ``.acq`` file.  Using a classifier derived from previous data, 
+MEAP has attempted to mark each of the relevant inflection points on this waveform. It is the job 
+of the user to examine these points, determine whether each is marked in the correct location, 
+and to adjust their placement where necessary. Point markings can be adjusted by simply 
+clicking on each and dragging it to the correct location. Moving the B-point in either of the 
+two tabs adjusts its placement in the other. Correct point markings should look like this:
+
+.. figure::  _static/global_ens.png
+   :scale: 80%
    :alt: point_marking_incorrect
    :align: center
 
-It is the job of the user to examine these points, determine whether each is marked in the
-correct location, and to adjust their placement where necessary.
-
-For example, in this case placement of the B-point is slightly high and the Q and S -points
-are not quite at the minimum. Correcting these issues, the heuristic ensemble should look like this:
-
-.. figure::  _static/global_ens_avg_fixed.png
-   :scale: 50%
-   :alt: point_marking_correct
-   :align: center
-   
 .. warning:: If you cannot find where one of the points is marked, it may be hidden beneath
 	one of the other points. Occasionally with messy data one point will be placed on top of 
 	one another such that one is not visible. 
@@ -422,8 +446,6 @@ are not quite at the minimum. Correcting these issues, the heuristic ensemble sh
 Once each point is marked on the ensemble averages, MEAP will use these values to update
 it's classifier and determine where to look for and mark the corresponding points at each 
 individual ensemble average or beat (depending on type of analysis). 
-
-.. Note::  For more examples of correct point placement, see :ref:`mark-custom-points`.
    
 When you are satisfied with the placement of each point on the heuristic ensemble average,
 simply close the window and proceed to the next step.
@@ -431,12 +453,123 @@ simply close the window and proceed to the next step.
 Step 7: Compute Moving Ensembles
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This feature of MEAP is not yet fully functional, but is not necessary for traditional 
-ensemble averaging analyses. For now, simply click on this function and press ok before 
-proceeding to the next (and final) step of preprocessing.
+The next step is to compute moving ensemble averages. 
 
-Step 8: Save Your Preprocessed File
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. figure::  _static/moving_ens.png
+   :scale: 80%
+   :alt: moving ensemble averaging
+   :align: center
+
+It takes some processing power for MEAP to use its classifier to compute the moving ensembles and 
+mark relevant points on each ensembled beat. While it's processing you will see a window like this:
+
+.. figure::  _static/elapsed_time.png
+   :scale: 80%
+   :alt: elapsed time
+   :align: center
+
+When it's done you will see a window like this:
+
+.. figure::  _static/moving_ens1.png
+   :scale: 80%
+   :alt: Moving Ensemble 1
+   :align: center
+
+Along the left panel are displayed each of the main physiological indices MEAP computes plotted as 
+a time series. In green are the values as calculated using the moving ensemble average. 
+The purple trace indicates what these values would be using just the raw data. 
+
+The right panel displays a topographical map of the raw dz/dt data corrected for respiration.
+Changing the setting for **Signal** allows the user to view each of the different data streams 
+in this manner. The **Visualize** option allows the user to select to view the raw or *Original*
+data, the data after the moving ensemble average is applied, or the residuals of this moving 
+ensemble analysis.
+
+Moving Ensembled:
+
+.. figure::  _static/moving_ens2.png
+   :scale: 80%
+   :alt: Moving Ensemble 1
+   :align: center
+
+Note, how much cleaner the moving ensemble is than the raw data. 
+
+Residuals: 
+
+.. figure::  _static/ens_resid.png
+   :scale: 80%
+   :alt: Moving Ensemble 1
+   :align: center
+
+Ideally, residuals will be random, producing no clear pattern in the image. 
+
+**Training the B-Point Classifier**
+
+B-points are notoriously difficult to mark as they are neither a maximum or a minimum. Thus, 
+although we have provided a prior to MEAP to tell it where to look for the b-point, we want 
+to provide MEAP with more data with which to train its b-point classifier. To do this 
+click on: **Create Training Set**. With this button press, MEAP will randomly select a 
+number of beats from the file (the default is 100 beats) for the user to hand mark. 
+
+.. figure::  _static/training_set.png
+   :scale: 80%
+   :alt: Create Training Set
+   :align: center
+
+This window looks almost exactly like the one we used to mark the ensembled average points
+except that this time a series of randomly selected moving ensembled heart beats is listed 
+in the left most panel. Clicking on each brings up that heart beat. Once you've hand labeled it, 
+the box in that column will be checked. The top image in the top right panel displays the 
+results of a principle components analysis of all marked inflection points. This plot 
+allows the user to easily visualize the spread of the data and identify potential outliers. 
+The bottom right panel plots the values for *LVET*, *PEP*, or *SV*, depending on which
+the user selects. The *N samples* field in the top left corner of the window allows the user 
+to specify the number of randomly selected beats to be hand marked and employed by the classifier.
+If there are any beats that you wish not to include in analyses, due to noise or whatever reason, 
+unselect the *Usable* box at the bottom of the window. This will remove data from this beat 
+from all further analyses.  
+
+.. figure::  _static/mark_bs.png
+   :scale: 80%
+   :alt: Marking B-points
+   :align: center
+
+As in the *Marking Custom Points* stage, the user can toggle between the **ICG Editor** and
+**All Signals** tabs to view just the ICG signal, or all data streams together. The other 
+aspects of this window remain the same. 
+
+.. figure::  _static/all_signals.png
+   :scale: 80%
+   :alt: All signals classifier training
+   :align: center
+
+Once you are satisfied with all marked points, select **Train Classifier**. This may take 
+a moment or two to process. Once complete, select **Save Classifier**. You can then close
+out of this window.
+
+.. figure::  _static/train_class.png
+   :scale: 80%
+   :alt: Train classifier button
+   :align: center
+
+Then return to the *Physio Timeseries* Window. Note that the points that we hand-marked 
+now appear in purple. The reason for MAP and TPR values dropping to zero is that blood 
+pressure data was censored at that point. Select **Apply b-point classifier**. 
+
+.. figure::  _static/apply_class.png
+   :scale: 80%
+   :alt: Applying classifier
+   :align: center
+   
+
+Step 8: Process fMRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+Step 9: Save Your Preprocessed File (Again!)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Save your Work! If you have not done so already, copy the *File* path and paste it into 
 the *Outfile* field and change the file type from ``.acq`` to ``.mea.mat``, then click
@@ -447,6 +580,7 @@ and repeat these steps until you have scored the data for all of your subjects.
 
 To improve processing speed click the **Clear Memory** button to clear the memory cache 
 before proceeding to the next file. 
+
 
 PART II: Calculating Ensemble Averages
 ============================================================
