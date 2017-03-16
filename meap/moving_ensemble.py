@@ -3,6 +3,7 @@ from traits.api import (HasTraits,  Array,  File, cached_property,
           Bool, Enum, Instance, on_trait_change, Property,
           DelegatesTo, Int, Button, List, Set )
 import os
+import joblib
 
 # Needed for Tabular adapter
 from traitsui.api import Item,HGroup,VGroup, HSplit
@@ -139,6 +140,13 @@ class MovingEnsembler(HasTraits):
             self.dirty = False
             
         self._init_bpoint_clf_name()
+        
+    @on_trait_change("bpoint_classifier_file")
+    def _file_updated(self):
+        logger.info("Checking for new bpoint classifier %s", self.bpoint_classifier_file)
+        if os.path.exists(self.bpoint_classifier_file):
+            self.bpoint_classifier = self._bpoint_classifier_default()
+                
         
     def _init_bpoint_clf_name(self):
         """Loops over various possible directories to find where to write
@@ -302,6 +310,16 @@ class MovingEnsembler(HasTraits):
         
     # Functions involving b-point classification
     def _bpoint_classifier_default(self):
+        if os.path.exists(self.bpoint_classifier_file):
+            logger.info("attempting to load %s", self.bpoint_classifier_file)
+            try:
+                clf = joblib.load(self.bpoint_classifier_file)
+                self.bpoint_classifier = BPointClassifier(
+                    physiodata=self.physiodata, classifier=clf)
+                logger.info("success")
+            except Exception, e:
+                logger.info("unable to load classifier file")
+                logger.info(e)
         logger.info("Loading new bpoint classifier (init)")
         return BPointClassifier(physiodata=self.physiodata)
 
@@ -319,7 +337,7 @@ class MovingEnsembler(HasTraits):
         progress.open()
         for i, beat in enumerate(self.mea_beat_train.beats):
             if not beat.hand_labeled: 
-                beat.b.set_index(self.bpoint_classifier.estimate_bpoint(beat.id))
+                beat.b.set_index(int(self.bpoint_classifier.estimate_bpoint(beat.id)))
             (cont,skip) = progress.update(i)
         (cont,skip) = progress.update(i+1)
         self.calculate_physio()

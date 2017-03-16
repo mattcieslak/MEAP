@@ -15,7 +15,7 @@ setup(
           "scikit-image",
           "traits",
           "traitsui",
-          "pyqt<5",
+          #"pyqt<5",
           "kiwisolver",
           "nibabel",
           "bioread==0.9.5",

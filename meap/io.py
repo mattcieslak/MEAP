@@ -732,6 +732,7 @@ class PhysioData(HasTraits):
     mea_hr = Array
     tpr = Array
     resp_corrected_tpr = Array
+    censored_secs_before = Array # Censored seconds between previous beat
 
     def _config_default(self):
         return MEAPConfig()
@@ -752,7 +753,11 @@ class PhysioData(HasTraits):
                 continue
             if k in ("censored_regions","event_names"):
                 continue
-            v = getattr(self,k)
+            try:
+                v = getattr(self,k)
+            except Exception,e:
+                logger.info("Unable to access %s for saving", k)
+                continue
             if type(v) == np.ndarray:
                 if v.size == 0: continue
             if type(v) is set: continue
@@ -769,9 +774,10 @@ class PhysioData(HasTraits):
             except Exception, e:
                 logger.warn("unable to save %s because of %s", k,e)
         tmp.close()
+        if not outfile.endswith(".mat"): outfile += ".mat"
         savemat(outfile, savedict,long_field_names=True)
-        if not os.path.exists(outfile+".mat"):
-            logger.critical("failed to save %s.mat", outfile)
+        if not os.path.exists(outfile):
+            logger.critical("failed to save %s", outfile)
         
 def load_from_disk(matfile, config=None,verbose=False):
     """
