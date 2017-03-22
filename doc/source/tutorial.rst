@@ -69,6 +69,13 @@ Step 2: Importing Data & Mapping the Channels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 When you launch MEAP, you will see a window that looks like this:
 
+.. figure:: _static/meap_launch.png
+   :scale: 80 %
+   :alt: MEAP launch screen
+   :align: center 
+
+Select **Preprocess**. This will open a window that looks like this:
+
 .. figure:: _static/preproc_launch1.png
    :scale: 80 %
    :alt: preprocessing launch screen
@@ -76,20 +83,21 @@ When you launch MEAP, you will see a window that looks like this:
 
 Click on the folder in the upper right corner to navigate to your input file. Information 
 from this spreadsheet will be called and a window will appear that contains all of your files 
-to be scored and also serves as the primary user interface. Files to be processed appear in white. 
-Once you finish the preprocessing pipeline and save as ``.mea.mat`` file, the row will turn light blue. 
-The file currently being processed appears in dark blue. 
+to be scored and also serves as the primary user interface. 
 
-To import files individually, right click within the "Input Physio file" portion of the 
-window and select **Add New Item**. Then click within the blank line that appears and then 
-navigate to the file you wish to score using the blue folder icon to the right of the *File*
-field. 
-
-  .. figure:: _static/preproc_window.png
+.. figure:: _static/preproc_interface.png
    :scale: 80 %
-   :alt: preprocessing window
-   :align: center 
-   
+   :alt: preprocessing interface
+   :align: center
+
+
+Files to be processed appear in white. Once you finish the preprocessing pipeline and 
+save as ``.mea.mat`` file, the row will turn light blue. The file currently being processed 
+appears in dark blue. To import files individually, right click within the "Input Physio file" 
+portion of the window and select **Add New Item**. Then click within the blank line that 
+appears and then navigate to the file you wish to score using the blue folder icon to the 
+right of the *File* field. 
+
 Now select the first file you would like to process. Then click on the **Import data** 
 button at the right of the screen to begin preprocessing.
 
