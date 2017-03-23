@@ -111,7 +111,7 @@ channel contains each data source. This is achieved by specifying the data conta
 within each channel using this GUI: 
 
 .. figure:: _static/import_the_channels.png
-   :scale: 60 %
+   :scale: 30 %
    :alt: import channels
    :align: center
 
@@ -538,7 +538,7 @@ unselect the *Usable* box at the bottom of the window. This will remove data fro
 from all further analyses.  
 
 .. figure::  _static/mark_bs.png
-   :scale: 80%
+   :scale: 60%
    :alt: Marking B-points
    :align: center
 
@@ -547,7 +547,7 @@ As in the *Marking Custom Points* stage, the user can toggle between the **ICG E
 aspects of this window remain the same. 
 
 .. figure::  _static/all_signals.png
-   :scale: 80%
+   :scale: 60%
    :alt: All signals classifier training
    :align: center
 
@@ -573,7 +573,7 @@ pressure data was censored at that point. Select **Apply b-point classifier**.
 Step 8: Process fMRI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+This feature not yet functional, but coming soon. 
 
 
 Step 9: Save Your Preprocessed File (Again!)
@@ -694,17 +694,12 @@ PART III: Analyzing your Scored Data
 ============================================================
 
 At this point you have completed the data scoring process. You now have a ``.csv`` file 
-with values for each cardiovascular index for each ensemble average. Your data should 
-look something like this:
+with values for each cardiovascular index for each ensemble average. MEAP calculates 
+a slope and an intercept for each EA.  
 
-.. figure::  _static/excel_output.png
-   :scale: 70%
-   :alt: Data Output
-   :align: center
-   
-.. warning: If you cannot open the output file on your computer, try downloading
-	**Open Office** and opening the file with that program. You can then copy and paste
-	that data back into excel or save it in the format of your choice.
+If you want to use the time series data from the moving ensemble averages computed during 
+preprocessing, those can be pulled from the .mea.mat file using R or another statistical 
+package of your choice. 
 	
 You are now ready to move this data into whatever statistical software you prefer for analyses.
 Depending on what type of analyses you wish to conduct you may need to reformat the data. 
