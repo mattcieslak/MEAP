@@ -194,6 +194,7 @@ class HeartBeat(HasTraits):
     def _set_default_times(self):
         # Set the default times to be consistent with physiodata
         for signal in self.physiodata.contents:
+            if signal == "respiration": continue
             if signal.startswith("ecg"):
                 _signal = "ecg" 
             else:

@@ -1,14 +1,14 @@
 from meap import (fail, __version__, ENSEMBLE_SIGNALS, 
-        SMOOTHING_WINDOWS)
+                  SMOOTHING_WINDOWS)
 import os
 import tempfile
 
 from traits.api import (HasTraits, CStr, Array, CFloat, CInt,
-          Bool, Enum, Instance, File,Property,
-          Range,Int, List, PrototypedFrom,cached_property,
-          CBool, CArray, Set)
+                        Bool, Enum, Instance, File,Property,
+                        Range,Int, List, PrototypedFrom,cached_property,
+                        CBool, CArray, Set)
 from traitsui.api import Item, Group
-      
+
 from scipy.io.matlab import savemat, loadmat
 import numpy as np
 import ConfigParser
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class MEAPConfig(HasTraits):
-    
+
     # Parameters for point marking
     apply_ecg_smoothing = CBool(True)
     ecg_smoothing_window_len = Int(5) # NOTE: Changed in 1.1 from 20
@@ -26,7 +26,7 @@ class MEAPConfig(HasTraits):
     imp_smoothing_window_len = Int(40)
     apply_bp_smoothing = CBool(True)
     bp_smoothing_window_len = Int(80)
-    
+
     # Parameters for waveform extraction
     peak_window = CInt(80) #Range(low=5,high=400, value= 200)
     ecg_pre_peak = CInt(300) #Range(low=50, high=500, value=300)
@@ -38,19 +38,19 @@ class MEAPConfig(HasTraits):
     stroke_volume_equation = Enum("Kubicek","Sramek-Bernstein")
     extraction_group = Group(
         Group(
-              Item("peak_window"),
-              Item("ecg_pre_peak"),
-              Item("ecg_post_peak"),
-              Item("dzdt_pre_peak"),
-              Item("dzdt_post_peak"),
-              Item("bp_pre_peak"),
-              Item("bp_post_peak"),
-              Item("stroke_volume_equation"),
-              orientation="vertical",
-              show_border=True,
-              label = "Waveform Extraction Parameters",
-              springy=True
-              ),
+            Item("peak_window"),
+            Item("ecg_pre_peak"),
+            Item("ecg_post_peak"),
+            Item("dzdt_pre_peak"),
+            Item("dzdt_post_peak"),
+            Item("bp_pre_peak"),
+            Item("bp_post_peak"),
+            Item("stroke_volume_equation"),
+            orientation="vertical",
+            show_border=True,
+            label = "Waveform Extraction Parameters",
+            springy=True
+            ),
         Group(
             Item("mhd_bandpass_min"),
             Item("mhd_bandpass_max"),
@@ -60,15 +60,15 @@ class MEAPConfig(HasTraits):
             Item("combined_smoothing_window_len"),
             Item("combined_smoothing_window"),
             enabled_when="subject_in_mri"
-            )
         )
-    
+    )
+
     # Respiration analysis parameters
     process_respiration = CBool(True)
     resp_polort = CInt(7)
     resp_high_freq_cutoff = CFloat(0.35)
     regress_out_resp = Bool(False)
-    
+
     # parameters for processing the raw data before PT detecting
     # MRI-specific    
     subject_in_mri = CBool(False)
@@ -85,19 +85,19 @@ class MEAPConfig(HasTraits):
     apply_diff_sq = CBool(True)
     apply_smooth_ma = CBool(True)
     pt_params_group = Group(
-              Item("apply_filter"),
-              Item("bandpass_min"),#editor=RangeEditor(enter_set=True)),
-              Item("bandpass_max"),#editor=RangeEditor(enter_set=True)),
-              Item("smoothing_window_len"),#editor=RangeEditor(enter_set=True)),
-              Item("smoothing_window"),
-              Item("pt_adjust"),#editor=RangeEditor(enter_set=True)),
-              Item("apply_diff_sq"),
-              Item("subject_in_mri"),
-              label="R peak detection options",
-              show_border=True,
-              orientation="vertical",
-              springy=True
-              )
+        Item("apply_filter"),
+        Item("bandpass_min"),#editor=RangeEditor(enter_set=True)),
+        Item("bandpass_max"),#editor=RangeEditor(enter_set=True)),
+        Item("smoothing_window_len"),#editor=RangeEditor(enter_set=True)),
+        Item("smoothing_window"),
+        Item("pt_adjust"),#editor=RangeEditor(enter_set=True)),
+        Item("apply_diff_sq"),
+        Item("subject_in_mri"),
+        label="R peak detection options",
+        show_border=True,
+        orientation="vertical",
+        springy=True
+    )
 
     # Second signal heartbeat detection
     use_secondary_heartbeat = CBool(False)
@@ -107,12 +107,12 @@ class MEAPConfig(HasTraits):
     secondary_heartbeat_window = Enum(SMOOTHING_WINDOWS)
     secondary_heartbeat_window_len = CInt(801)
     secondary_heartbeat_n_likelihood_bins = CInt(15)
-    
+
     # ECG2 parameters
     use_ECG2 = CBool(False)
     qrs_signal_source = Enum("ecg", "ecg2")
     ecg2_weight = Range(low=0., high=1.,value=0.5)
-    
+
     # DTWEA parameters
     dtw_ecg_warping_penalty = CFloat(0.1)
     dtw_ecg_n_iterations = CInt(5)
@@ -127,7 +127,7 @@ class MEAPConfig(HasTraits):
     dtw_z0_metric = Enum(('euclidean', 'sqeuclidean', 'cosine'))
     dtw_z0_k = CInt(50)
     dtw_z0_used = CBool(False)
-    
+
     dtw_dzdt_warping_penalty = CFloat(0.1)
     dtw_dzdt_n_iterations = CInt(5)
     dtw_dzdt_constraint = Enum(("itakura",'slanted_band','sakoe_chiba','None')) 
@@ -145,7 +145,7 @@ class MEAPConfig(HasTraits):
     mea_weight_direction = Enum("symmetric", "before", "after")
     mea_smooth_hr = CBool(True)
     use_trimmed_co = CBool(True)
-    
+
     #bpoint classifier parameters
     bpoint_classifier_pre_point_msec = CInt(20)
     bpoint_classifier_post_point_msec = CInt(20)
@@ -153,8 +153,8 @@ class MEAPConfig(HasTraits):
     bpoint_classifier_false_distance_min = CInt(5)
     bpoint_classifier_use_bpoint_prior = CBool(True)
     bpoint_classifier_include_derivative = CBool(True)
-    
-    
+
+
 def load_config(config_path):
     cpr = ConfigParser.ConfigParser()
     cpr.read(config_path)
@@ -178,9 +178,9 @@ def load_config(config_path):
         else:
             raise ValueError("Unable to read %s trait of type %s" %(trait,typ))
     return config
-            
-        
-    
+
+
+
 MSEC_PER_SEC=1000.
 def peak_stack(peak_indices, values, pre_msec=300, 
                post_msec=700, sampling_rate=1000):
@@ -218,13 +218,13 @@ class PhysioData(HasTraits):
             if not hasattr(self, attr): continue
             if getattr(self,attr).size > 0:
                 contents.update((signal,))
-                
+
         # Check for respiration-corrected versions of z0 and dzdt
         for signal in ["resp_corrected_z0", "resp_corrected_dzdt"]:
             if not hasattr(self, signal): continue
             if getattr(self,signal).size > 0:
                 contents.update((signal,))
-            
+
         return contents
 
     calculable_indexes = Property(Set)
@@ -288,7 +288,7 @@ class PhysioData(HasTraits):
     # -- Censored Epochs --
     censored_intervals = Array
     censoring_sources = List
-    
+
     @cached_property
     def _get_censored_regions(self):
         censor_regions = []
@@ -313,11 +313,11 @@ class PhysioData(HasTraits):
     secondary_heartbeat_window = PrototypedFrom("config")
     secondary_heartbeat_window_len = PrototypedFrom("config")
     secondary_heartbeat_n_likelihood_bins = PrototypedFrom("config")
-    
+
     use_ECG2 = PrototypedFrom("config")
     ecg2_weight = PrototypedFrom("config")
     qrs_signal_source = PrototypedFrom("config")
-    
+
     # Bpoint classifier options
     bpoint_classifier_pre_point_msec = PrototypedFrom("config")
     bpoint_classifier_post_point_msec = PrototypedFrom("config")
@@ -325,7 +325,7 @@ class PhysioData(HasTraits):
     bpoint_classifier_false_distance_min =PrototypedFrom("config")
     bpoint_classifier_use_bpoint_prior =PrototypedFrom("config")
     bpoint_classifier_include_derivative =PrototypedFrom("config")
-    
+
     # DTWEA parameters
     dtw_ecg_warping_penalty = PrototypedFrom('config')
     dtw_ecg_n_iterations = PrototypedFrom('config')
@@ -340,7 +340,7 @@ class PhysioData(HasTraits):
     dtw_z0_metric = PrototypedFrom('config')
     dtw_z0_k = PrototypedFrom('config')
     dtw_z0_used = PrototypedFrom('config')
-    
+
     dtw_dzdt_warping_penalty = PrototypedFrom('config')
     dtw_dzdt_n_iterations = PrototypedFrom('config')
     dtw_dzdt_constraint = PrototypedFrom('config')
@@ -364,8 +364,8 @@ class PhysioData(HasTraits):
     def _get_z0_matrix(self):
         if self.peak_indices.size == 0: return np.array([])
         return peak_stack(self.peak_indices,self.z0_data,
-                    pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
-                    sampling_rate=self.z0_sampling_rate)
+                          pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
+                          sampling_rate=self.z0_sampling_rate)
 
     mea_resp_corrected_z0_matrix = Array
     resp_corrected_z0_matrix = Property(Array,depends_on="peak_indices")
@@ -373,9 +373,9 @@ class PhysioData(HasTraits):
         if self.peak_indices.size == 0 or self.resp_corrected_z0.size == 0:
             return np.array([])
         return peak_stack(self.peak_indices,self.resp_corrected_z0,
-                    pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
-                    sampling_rate=self.z0_sampling_rate)
-    
+                          pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
+                          sampling_rate=self.z0_sampling_rate)
+
     dzdt_winsor_min = CFloat(0.005)
     dzdt_winsor_max = CFloat(0.005)
     dzdt_winsorize = CBool(False)
@@ -393,9 +393,9 @@ class PhysioData(HasTraits):
     def _get_dzdt_matrix(self):
         if self.peak_indices.size == 0: return np.array([])
         return peak_stack(self.peak_indices,self.dzdt_data,
-                    pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
-                    sampling_rate=self.dzdt_sampling_rate)
-    
+                          pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
+                          sampling_rate=self.dzdt_sampling_rate)
+
     resp_corrected_dzdt_matrix = Property(Array,depends_on="peak_indices")
     mea_resp_corrected_dzdt_matrix = Array
     @cached_property
@@ -403,9 +403,9 @@ class PhysioData(HasTraits):
         if self.peak_indices.size == 0 or self.resp_corrected_dzdt.size == 0:
             return np.array([])
         return peak_stack(self.peak_indices,self.resp_corrected_dzdt,
-                    pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
-                    sampling_rate=self.dzdt_sampling_rate)
-    
+                          pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
+                          sampling_rate=self.dzdt_sampling_rate)
+
     # ECG
     ecg_included = CBool(False)
     ecg_winsor_min = CFloat(0.005)
@@ -424,9 +424,9 @@ class PhysioData(HasTraits):
     def _get_ecg_matrix(self):
         if self.peak_indices.size == 0: return np.array([])
         return peak_stack(self.peak_indices,self.ecg_data,
-                    pre_msec=self.ecg_pre_peak,post_msec=self.ecg_post_peak,
-                    sampling_rate=self.ecg_sampling_rate)
-    
+                          pre_msec=self.ecg_pre_peak,post_msec=self.ecg_post_peak,
+                          sampling_rate=self.ecg_sampling_rate)
+
     # ECG Secondary (eg from EEG)
     ecg2_included = CBool(False)
     ecg2_winsor_min = CFloat(0.005)
@@ -445,9 +445,9 @@ class PhysioData(HasTraits):
     def _get_ecg2_matrix(self):
         if self.peak_indices.size == 0: return np.array([])
         return peak_stack(self.peak_indices,self.ecg2_data,
-                    pre_msec=self.ecg_pre_peak,post_msec=self.ecg_post_peak,
-                    sampling_rate=self.ecg_sampling_rate)
-    
+                          pre_msec=self.ecg_pre_peak,post_msec=self.ecg_post_peak,
+                          sampling_rate=self.ecg_sampling_rate)
+
     # Blood pressure might come from a CNAP
     using_continuous_bp = CBool(False)
     bp_included = CBool(False)
@@ -466,9 +466,9 @@ class PhysioData(HasTraits):
     @cached_property
     def _get_bp_matrix(self):
         return peak_stack(self.peak_indices,self.bp_data,
-                    pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
-                    sampling_rate=self.bp_sampling_rate)
-    
+                          pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
+                          sampling_rate=self.bp_sampling_rate)
+
     # Or two separate channels
     systolic_included = CBool(False)
     systolic_winsor_min = CFloat(0.005)
@@ -482,16 +482,16 @@ class PhysioData(HasTraits):
     systolic_start_time = CFloat(0.)
     systolic_data = Array
     systolic_matrix = Property(Array,
-                depends_on="peak_indices,bp_pre_peak,bp_post_peak")
+                               depends_on="peak_indices,bp_pre_peak,bp_post_peak")
     mea_systolic_matrix = Array
     @cached_property
     def _get_systolic_matrix(self):
         if self.peak_indices.size == 0 or self.using_continuous_bp: 
             return np.array([])
         return peak_stack(self.peak_indices,self.systolic_data,
-                    pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
-                    sampling_rate=self.bp_sampling_rate)
-    
+                          pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
+                          sampling_rate=self.bp_sampling_rate)
+
     diastolic_included = CBool(False)
     diastolic_winsor_min = CFloat(0.005)
     diastolic_winsor_max = CFloat(0.005)
@@ -504,16 +504,16 @@ class PhysioData(HasTraits):
     diastolic_start_time = CFloat(0.)
     diastolic_data = Array
     diastolic_matrix = Property(Array,
-                depends_on="peak_indices,bp_pre_peak,bp_post_peak")
+                                depends_on="peak_indices,bp_pre_peak,bp_post_peak")
     mea_diastolic_matrix = Array
     @cached_property
     def _get_diastolic_matrix(self):
         if self.peak_indices.size == 0 or not ("dbp" in self.contents): 
             return np.array([])
         return peak_stack(self.peak_indices,self.diastolic_data,
-                    pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
-                    sampling_rate=self.bp_sampling_rate)
-    
+                          pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
+                          sampling_rate=self.bp_sampling_rate)
+
     respiration_included = CBool(False)
     respiration_winsor_min = CFloat(0.005)
     respiration_winsor_max = CFloat(0.005)
@@ -548,7 +548,7 @@ class PhysioData(HasTraits):
     event_start_time = CFloat(0.)
     event_sampling_rate_unit = "Hz"
     event_unit = CStr("Hz")
-    
+
     # -- results of peak detection
     peak_times = Array
     peak_indices = CArray(dtype=np.int)
@@ -563,7 +563,7 @@ class PhysioData(HasTraits):
     usable = Instance(np.ndarray)
     def _usable_default(self):
         return np.ones(len(self.peak_indices),dtype=np.int)
-    
+
     p_indices = Instance(np.ndarray)
     def _p_indices_default(self):
         return np.zeros_like(self.peak_indices)
@@ -597,29 +597,29 @@ class PhysioData(HasTraits):
     diastole_indices = Instance(np.ndarray)
     def _diastole_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    
+
     # --- Subject information
     subject_age = CFloat(0.)
     subject_gender = Enum("M","F")
     subject_weight = CFloat(0.,label="Weight (lbs)")
     subject_height_ft = Int(0,label="Height (ft)",
-                        desc="Subject's height in feet")
+                            desc="Subject's height in feet")
     subject_height_in = Int(0,label = "Height (in)",
-                        desc="Subject's height in inches")
+                            desc="Subject's height in inches")
     subject_electrode_distance_front = CFloat(0.,
-                        label="Impedance electrode distance (front)")
+                                              label="Impedance electrode distance (front)")
     subject_electrode_distance_back = CFloat(0.,
-                        label="Impedance electrode distance (back)")
+                                             label="Impedance electrode distance (back)")
     subject_electrode_distance_right = CFloat(0.,
-                        label="Impedance electrode distance (back)")
+                                              label="Impedance electrode distance (back)")
     subject_electrode_distance_left = CFloat(0.,
-                        label="Impedance electrode distance (back)")
+                                             label="Impedance electrode distance (back)")
     subject_resp_max = CFloat(0.,label="Respiration circumference max (cm)")
     subject_resp_min = CFloat(0.,label="Respiration circumference min (cm)")
     subject_in_mri = CBool(False,label="Subject was in MRI scanner")
     subject_control_base_impedance = CFloat(0.,label="Control Imprdance",
-                        desc="If in MRI, store the z0 value from outside the MRI")
-    
+                                            desc="If in MRI, store the z0 value from outside the MRI")
+
     subject_l = Property(CFloat,depends_on=
                          "subject_electrode_distance_front," + \
                          "subject_electrode_distance_back," + \
@@ -632,14 +632,14 @@ class PhysioData(HasTraits):
         """
         Uses information from the subject measurements to define the 
         l variable for calculating stroke volume. 
-        
+
         if left and right electrode distances are provided, use the average
         if front and back electrode distances are provided, use the average
         if subject height in feet and inches is provided, use the estimate of
              l = 0.17 * height
         Otherwise return the first measurement found in front,back,left,right
         If nothing is found, returns 1
-        
+
         """
         front = self.subject_electrode_distance_front
         back = self.subject_electrode_distance_back
@@ -655,7 +655,7 @@ class PhysioData(HasTraits):
         for measure in (front, back, left, right):
             if measure > 0.: return measure
         return 1
-    
+
     # --- From the global configuration
     config = Instance(MEAPConfig)
     apply_ecg_smoothing = PrototypedFrom("config")
@@ -665,7 +665,7 @@ class PhysioData(HasTraits):
     apply_bp_smoothing = PrototypedFrom("config")
     bp_smoothing_window_len = PrototypedFrom("config")
     regress_out_resp = PrototypedFrom("config")
-    
+
     # parameters for processing the raw data before PT detecting
     subject_in_mri = PrototypedFrom("config")
     peak_detection_algorithm  = PrototypedFrom("config")
@@ -681,7 +681,7 @@ class PhysioData(HasTraits):
     apply_diff_sq = PrototypedFrom("config")
     apply_smooth_ma = PrototypedFrom("config")
     peak_window = PrototypedFrom("config")
-    
+
     # Parameters for waveform extraction
     ecg_pre_peak = PrototypedFrom("config")
     ecg_post_peak = PrototypedFrom("config")
@@ -690,14 +690,14 @@ class PhysioData(HasTraits):
     bp_pre_peak = PrototypedFrom("config")
     bp_post_peak = PrototypedFrom("config")
     stroke_volume_equation = PrototypedFrom("config")
-    
+
     # parameters for respiration analysis
     process_respiration = PrototypedFrom("config")
     resp_polort = PrototypedFrom("config")
     resp_high_freq_cutoff = PrototypedFrom("config")
     resp_inhale_begin_times = Array
     resp_exhale_begin_times = Array
-    
+
     # Time points of the global ensemble average
     ens_avg_ecg_signal = Array
     ens_avg_dzdt_signal = Array
@@ -717,7 +717,7 @@ class PhysioData(HasTraits):
     ens_avg_systole_time = CFloat
     ens_avg_diastole_time = CFloat
     using_hand_marked_point_priors = CBool(False)
-    
+
     # MEA Physio timeseries
     lvet = Array
     co = Array
@@ -732,14 +732,13 @@ class PhysioData(HasTraits):
     mea_hr = Array
     tpr = Array
     resp_corrected_tpr = Array
-    censored_secs_before = Array # Censored seconds between previous beat
 
     def _config_default(self):
         return MEAPConfig()
-    
+
     # Storing and accessing the bpoint classifier
     bpoint_classifier_file = File
-    
+
     def save(self,outfile):
         # Populate matfile-friendly data structures for censoring regions
         tmp = tempfile.NamedTemporaryFile()
@@ -753,17 +752,13 @@ class PhysioData(HasTraits):
                 continue
             if k in ("censored_regions","event_names"):
                 continue
-            try:
-                v = getattr(self,k)
-            except Exception,e:
-                logger.info("Unable to access %s for saving", k)
-                continue
+            v = getattr(self,k)
             if type(v) == np.ndarray:
                 if v.size == 0: continue
             if type(v) is set: continue
             save_attrs.append(k)
         savedict = dict([(k,getattr(self,k)) \
-                  for k in save_attrs if not (getattr(self,k) is None)])
+                         for k in save_attrs if not (getattr(self,k) is None)])
         savedict["censoring_sources"] = np.array(self.censoring_sources)
         for evt in self.event_names:
             savedict[evt] = getattr(self,evt)
@@ -774,11 +769,10 @@ class PhysioData(HasTraits):
             except Exception, e:
                 logger.warn("unable to save %s because of %s", k,e)
         tmp.close()
-        if not outfile.endswith(".mat"): outfile += ".mat"
         savemat(outfile, savedict,long_field_names=True)
-        if not os.path.exists(outfile):
-            logger.critical("failed to save %s", outfile)
-        
+        if not os.path.exists(outfile+".mat"):
+            logger.critical("failed to save %s.mat", outfile)
+
 def load_from_disk(matfile, config=None,verbose=False):
     """
     Loads a .mea file from disk
@@ -804,7 +798,7 @@ def load_from_disk(matfile, config=None,verbose=False):
                 obj = pd
             if verbose:
                 logger.info("Extracting attribute: " + k)
-            
+
             # Skip over the traits we generate on-the-fly
             if k.endswith("matrix") and not k.startswith("mea"): continue
             if k == "censored_regions": continue
@@ -817,7 +811,7 @@ def load_from_disk(matfile, config=None,verbose=False):
             if k == "censoring_sources":
                 tdict[k] = [str(d).strip() for d in v]
                 continue
-            
+
             # cast the squeezed matrices into their appropriate types
             if k.startswith("EVENT_"):
                 logger.info("loading event data %s", k)

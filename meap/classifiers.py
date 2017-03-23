@@ -147,6 +147,9 @@ class BPointClassifier(HasTraits):
         return np.row_stack(signal)
 
     def estimate_bpoint(self,beatnum=None,beat_obj=None):
+        """
+        Returns the index of the estimated b point
+        """
         if beatnum is not None:
             features = self.beat_to_time_feature_matrix(beatnum)
             r_index = self.physiodata.r_indices[beatnum]
@@ -163,7 +166,7 @@ class BPointClassifier(HasTraits):
             offset = np.flatnonzero(multi_estimates).mean()
         else:
             offset = np.argmin(preds)
-        return r_index  + offset
+        return int(r_index  + offset)
 
     def _get_bpoint_prior(self):
         return self.physiodata.b_indices[self.physiodata.hand_labeled > 0]

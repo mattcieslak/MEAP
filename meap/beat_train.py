@@ -37,6 +37,8 @@ beat_table = TableEditor(
     selected="selected_beat"
     )
 
+from meap import outlier_feature_function
+
 
 class BeatTrain(HasTraits):
     # Holds the peak labels for each detected beat
@@ -75,50 +77,36 @@ class BeatTrain(HasTraits):
     # The important trait:
     beats = List(Instance(HeartBeat))
     selected_beat = Instance(HeartBeat)
+    parameter_plot_data = Instance(ArrayPlotData,transient=True)
+    fitted = Bool(False)
+    # traits for the summary plots
+    plot_contents = Enum("LVET","PEP", "Stroke Volume")
+    summary_inspector = Instance(ScatterInspector)
+    outlier_plot = Instance(Plot,transient=True)
+    outlier_plot_data = Instance(ArrayPlotData,transient=True)
+    outlier_inspector = Instance(ScatterInspector)
+    b_calculate = Button("Calculate")
+    auto_calc_outliers = Bool(True)
 
     subset = Array
+    beat_features = Array
     
     def __init__(self,**traits):
         super(BeatTrain,self).__init__(**traits)
+        if self.auto_calc_outliers:
+            self.calculate_outliers()  
         # Initialize the heartrate
         self.get_heartrate()
     
     def _get_global_ensemble_average(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
-    # Features to use for the outlier analysis
-    beat_features = Property(Array)
-    def _get_beat_features(self):
-        # Which beats should be included in these features?
-        if self.subset.size == 0:
-            subset = slice(None)
-        else:
-            subset = self.subset
-            logger.info("subset dtype: %s", str(subset.dtype))
-            if not subset.dtype == np.int:
-                subset=subset.astype(np.int)
-
-        features = [
-            self.physiodata.b_indices[subset],
-            self.physiodata.x_indices[subset],
-            self.physiodata.dzdt_matrix[np.arange(len(self.physiodata.peak_indices)),
-                                                  self.physiodata.c_indices][subset],
-            self.physiodata.ecg_matrix[np.arange(len(self.physiodata.peak_indices)),
-                                                  self.physiodata.r_indices][subset],
-            ]
-        
-        return np.column_stack(features)
-
-    outlier_plot = Instance(Plot,transient=True)
-    outlier_plot_data = Instance(ArrayPlotData,transient=True)
     def _outlier_plot_data_default(self):
         return ArrayPlotData(
             x1=np.array([]),        
             x2=np.array([])
         )
         
-    outlier_inspector = Instance(ScatterInspector)
-    b_calculate = Button("Calculate")
 
     def __len__(self):
         if self.subset.size == 0:
@@ -126,20 +114,31 @@ class BeatTrain(HasTraits):
         return self.subset.shape[0]
     
     def calculate_outliers(self):
+        logger.info("Extracting features for outlier detection")        
+        feature_grabber = outlier_feature_function(self.physiodata.contents)
+        
+        self.beat_features = np.array(
+            [feature_grabber(beat) for beat in self.beats if beat.usable]
+        )
+        usable = np.array([beat.usable for beat in self.beats])
+        self.usable_beats = [beat.id for beat in self.beats if beat.usable]
+        if self.beat_features.size == 0:
+            return
+        
         if not self.fitted:
             self.fits = FastICA(n_components=2).fit(self.beat_features)
             self.fitted = True
         
         transform_2d = self.fits.transform(self.beat_features)
         
-        x,y = transform_2d.T
-        beat_ids = np.array([int(b.id) for b in self.beats])
-        usable = self.physiodata.usable[beat_ids] > 0
-        self.outlier_plot_data.set_data("x1",x[usable>0])
-        self.outlier_plot_data.set_data("x2",y[usable>0])
+        if self.outlier_plot is not None:
+            x,y = transform_2d.T
+            beat_ids = np.array([int(b.id) for b in self.beats])
+            usable = self.physiodata.usable[beat_ids] > 0
+            self.outlier_plot_data.set_data("x1",x)
+            self.outlier_plot_data.set_data("x2",y)
         
     def _outlier_plot_default(self):
-        self.calculate_outliers()
         plot = Plot(self.outlier_plot_data, 
                     use_backbuffer=True)
         self.outlier_markers = plot.plot(
@@ -164,7 +163,6 @@ class BeatTrain(HasTraits):
                                     selection_marker_size = 8,
                                     selection_color = "lightblue")
         )
-        self.calculate_outliers()
         return plot
     
     @on_trait_change("beats.point_updated")
@@ -233,9 +231,9 @@ class BeatTrain(HasTraits):
             grabber_func = lambda x : x.get_sv()
         if hasattr(self,"parameter_plot_data"):
             self.parameter_plot_data.set_data("beat_id",
-                np.array([b.id for b in self.beats]))
+                np.array([b.id for b in self.beats if b.usable]))
             self.parameter_plot_data.set_data("param_value",
-                np.array([grabber_func(b) for b in self.beats]))
+                np.array([grabber_func(b) for b in self.beats if b.usable]))
         
     def parameter_plot_item_selected(self):
         """a point got clicked in the parameter plotter"""
@@ -244,11 +242,6 @@ class BeatTrain(HasTraits):
         index = sel_indices[-1]
         self.selected_beat = self.beats[index]
             
-    parameter_plot_data = Instance(ArrayPlotData,transient=True)
-    fitted = Bool(False)
-    # traits for the summary plots
-    plot_contents = Enum("LVET","PEP", "Stroke Volume")
-    summary_inspector = Instance(ScatterInspector)
     
     @on_trait_change("selected_beat")
     def set_table_index(self):
@@ -455,4 +448,3 @@ class MEABeatTrain(BeatTrain):
         for beat in self.beats:
             beat._set_default_signals()
             beat.update_plot()
-

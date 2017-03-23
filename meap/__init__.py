@@ -22,7 +22,7 @@ DEFAULT_SAMPLING_RATE=1000
 SEARCH_WINDOW=30 #samples
 BLOOD_RESISTIVITY=135. # Ohms cm
 n_regions=0
-__version__= "1.1.1"
+__version__= "1.1.2"
 
 # Are we bundled?
 if getattr( sys, 'frozen', False ) :

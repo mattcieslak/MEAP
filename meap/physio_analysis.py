@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 import joblib
 
 from meap.classifiers import BPointClassifier
+from meap import outlier_feature_function_for_physio_experiment
 
 # Stuff for excel
 import os
@@ -325,13 +326,9 @@ class ExpEvent(HasTraits):
     def _hb_changed(self,obj,name,new):
         self.hand_labeled = True
         self.calculate_physio()
-        if self.parent.parent.beat_features.size > 0:
-            print "Setting beat features to reflect changes"
-            self.parent.parent.beat_features[self.event_id] = self.calculate_outliers()
-            self.parent.parent.calculate_outliers()
-            self.parent.parent.update_param_plot()
-        else:
-            print "parent has no beat_features"
+        logger.info("Updating Beat features")
+        #self.parent.parent.calculate_outliers()
+        self.parent.parent.update_param_plot()
     
     def _get_viable_time_interval(self):
         # figure out the viable time before calculating HR
@@ -401,18 +398,8 @@ class ExpEvent(HasTraits):
                 continue
             out[attr] = getattr(self,attr)
                 
-                
         return out
     
-    def calculate_outliers(self):
-        feats = []
-        for feat in []:
-            if feat.startswith("ea"):
-                feats.append(getattr(self,feat))
-            elif feat.endswith("time"):
-                feats.append(getattr(self.ensemble_averaged_heartbeat,
-                        feat.split("_")[0]).time)
-        return np.array(feats)
         
     def _ensemble_averaged_heartbeat_default(self):
         if self.parent is None or self.parent.physiodata is None:
@@ -446,8 +433,7 @@ class ExpEvent(HasTraits):
             for point, point_time in self.custom_times.iteritems():
                 try:
                     getattr(self.ensemble_averaged_heartbeat,
-                        point.split("_")[0]).set_time(
-                            self.ensemble_averaged_heartbeat,point_time)
+                        point.split("_")[0]).set_time(point_time)
                 except AttributeError:
                     continue
         if bpoint_classifier is not None:
@@ -687,7 +673,8 @@ class PhysioFileAnalysis(HasTraits):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
     
     def _btrain_default(self):
-        return BeatTrain(physiodata=self.physiodata)
+        return BeatTrain(physiodata=self.physiodata,
+                         auto_calc_outliers=False)
     
     def _get_mea_computed(self):
         if self.physiodata is None:
@@ -885,17 +872,20 @@ class PhysioExperiment(HasTraits):
         self.calculate_outliers()
             
     def calculate_outliers(self):
+        feature_grabber = outlier_feature_function_for_physio_experiment(self)
         # Update the ICA plot and outlier est.
-        #self.beat_features = np.array(
-        #    [event.calculate_outliers() for event in self.events]
-        #)
+        logger.info("Extracting features for outlier detection")        
+        self.beat_features = np.array(
+            [feature_grabber(event) for event in self.events if event.usable]
+        )
         usable = np.array([evt.ensemble_averaged_heartbeat.usable for evt in self.events])
         self.usable_events = [evt.event_id for evt in self.events if evt.usable]
+        
         if self.beat_features.size == 0:
             return
         if not self.fitted:
             logger.info("Initializing FastICA 2D mapping")
-            self.fits = FastICA(n_components=2).fit(self.beat_features[usable])
+            self.fits = FastICA(n_components=2).fit(self.beat_features)
             self.fitted = True
         
         transform_2d = self.fits.transform(self.beat_features)
@@ -906,23 +896,23 @@ class PhysioExperiment(HasTraits):
         self.oddities=dists
         if self.outlier_plot is not None:
             x,y = transform_2d.T
-            self.outlier_plot_data.set_data("x1",x[usable])
-            self.outlier_plot_data.set_data("x2",y[usable])
-            self.outlier_plot_data.set_data("oddity",self.subject_colors[usable])
+            self.outlier_plot_data.set_data("x1",x)
+            self.outlier_plot_data.set_data("x2",y)
+            self.outlier_plot_data.set_data("oddity",self.subject_colors)
             
     
     @on_trait_change("selected_event")
     def set_table_index(self):
         selected_id = self.selected_event.event_id
         logger.info("Selection changed to event %d", selected_id)
-        #self.outlier_index_data.metadata['selections'] = []
+        self.outlier_index_data.metadata['selections'] = []
         self.param_index_data.metadata['selections'] = []
         if not selected_id in self.usable_events:
             logger.info("Event %d is not usable, therefore not plotted",
                         selected_id)
             return
         actual_index = self.usable_events.index(selected_id)
-        #self.outlier_inspector._select(actual_index)
+        self.outlier_inspector._select(actual_index)
         self.parameter_inspector._select(actual_index)
             
     def outlier_plot_item_selected(self):
