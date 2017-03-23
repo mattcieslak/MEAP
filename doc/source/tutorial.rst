@@ -69,6 +69,13 @@ Step 2: Importing Data & Mapping the Channels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 When you launch MEAP, you will see a window that looks like this:
 
+.. figure:: _static/meap_launch.png
+   :scale: 80 %
+   :alt: MEAP launch screen
+   :align: center 
+
+Select **Preprocess**. This will open a window that looks like this:
+
 .. figure:: _static/preproc_launch1.png
    :scale: 80 %
    :alt: preprocessing launch screen
@@ -76,20 +83,21 @@ When you launch MEAP, you will see a window that looks like this:
 
 Click on the folder in the upper right corner to navigate to your input file. Information 
 from this spreadsheet will be called and a window will appear that contains all of your files 
-to be scored and also serves as the primary user interface. Files to be processed appear in white. 
-Once you finish the preprocessing pipeline and save as ``.mea.mat`` file, the row will turn light blue. 
-The file currently being processed appears in dark blue. 
+to be scored and also serves as the primary user interface. 
 
-To import files individually, right click within the "Input Physio file" portion of the 
-window and select **Add New Item**. Then click within the blank line that appears and then 
-navigate to the file you wish to score using the blue folder icon to the right of the *File*
-field. 
-
-  .. figure:: _static/preproc_window.png
+.. figure:: _static/preproc_interface.png
    :scale: 80 %
-   :alt: preprocessing window
-   :align: center 
-   
+   :alt: preprocessing interface
+   :align: center
+
+
+Files to be processed appear in white. Once you finish the preprocessing pipeline and 
+save as ``.mea.mat`` file, the row will turn light blue. The file currently being processed 
+appears in dark blue. To import files individually, right click within the "Input Physio file" 
+portion of the window and select **Add New Item**. Then click within the blank line that 
+appears and then navigate to the file you wish to score using the blue folder icon to the 
+right of the *File* field. 
+
 Now select the first file you would like to process. Then click on the **Import data** 
 button at the right of the screen to begin preprocessing.
 
@@ -102,8 +110,8 @@ Once your Aqcknowledge or matlab file is imported you'll need to let MEAP know w
 channel contains each data source. This is achieved by specifying the data contained 
 within each channel using this GUI: 
 
-.. figure:: _static/import_channels.png
-   :scale: 40 %
+.. figure:: _static/import_the_channels.png
+   :scale: 60 %
    :alt: import channels
    :align: center
 
@@ -131,7 +139,7 @@ and whether data was collected during Magnetic Resonance Imaging (MRI). This lat
 specification in critical as MEAP utilizes a customized point-marking algorithm for data
 collected within the scanner. 
 
-.. figure:: _static/measurements.png
+.. figure:: _static/P_measurements.png
    :scale: 40 %
    :alt: participant measurements
    :align: center
@@ -157,7 +165,7 @@ of the GUI.
 
 MEAP will load and display the data in a GUI like this:
 
-.. figure:: _static/inspect_all.png
+.. figure:: _static/inspect_all_data.png
    :scale: 70 %
    :alt: inspect all acq data
    :align: center
@@ -582,20 +590,8 @@ To improve processing speed click the **Clear Memory** button to clear the memor
 before proceeding to the next file. 
 
 
-PART II: Calculating Ensemble Averages
+PART II: Calculating Ensemble and Moving Ensemble Averages
 ============================================================
-
-
-MEAP will then visit each detected heartbeat and label the points on it. Using
-these points, MEAP then calculates the following cardiovascular indices:
-
-	1. **Total Peripheral Resistance** (TPR)
-	2. **Cardiac Output** (CO)
-	3. **Stroke Volume** (SV)
-	4. **Pre-Ejection Period** (PEP)
-	5. **Mean Arterial Pressure** (MAP)
-	6. **Heart Rate** (HR)
-	7. **Heart Rate Variability** (HRV) 
 
 Step 1: Create a Design Spread Sheet
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -603,8 +599,8 @@ Step 1: Create a Design Spread Sheet
 This should specify your subjects, your experimental design, and the path to the ``mea.mat``
 files that you preprocessed:
 
-.. figure::  _static/design_file.png
-   :scale: 60%
+.. figure::  _static/excel_design.png
+   :scale: 80%
    :alt: design spreadsheet
    :align: center
    
@@ -614,65 +610,85 @@ window you are using and on other specifics of your study design.
 This same file is also where your data will ultimately be printed. Thus it serves as both 
 the input and output file for this stage of the scoring process. 
 
-Step 2: Open Ensemble Average GUI
+Step 2: Analysis
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Ensemble Average GUI allows the user to visualize each ensemble average (duration 
-specified in your excel file) as well as the values for key indices (B-point, PEP, LVET)
-for all subjects, for a specific subject only, or for a specific data file only. 
+For step 2, select **Analyze** on the MEAP launch window. 
 
-In the top right corner is an ICA plot which takes all of the features of the ensemble 
-averages into account and then plots them in two dimensions based on their covariance. 
-
-.. figure::  _static/ensembles_all.png
-   :scale: 80%
-   :alt: EA GUI
+.. figure::  _static/meap_launch.png
+   :scale: 60%
+   :alt: design spreadsheet
    :align: center
+
+**Ensemble Averaging**
+
+The first step is to load your prepared design file. The analyze interface will then look like this:
+
+.. figure::  _static/analyze_interface1.png
+   :scale: 60%
+   :alt: design spreadsheet
+   :align: center
+
+Until you click **Run** all values for indices will be zero and nothing will be plotted in 
+the windows on the right. After selecting run, the interface will look something like this:
+
+.. figure::  _static/analyze_interface.png
+   :scale: 90%
+   :alt: design spreadsheet
+   :align: center
+   
+The Ensemble Average window allows the user to visualize each ensemble average (duration 
+specified in your excel file) as well as the values for key indices (B-point, PEP, LVET)
+for all subjects, for a specific subject only, or for a specific data file only. In the 
+top right corner is an ICA plot which takes all of the features of the ensemble 
+averages into account and then plots them in two dimensions based on their covariance. 
 
 Using the column headers you can sort by subject, event, or by "oddity index" which reflects
 that EAs distance from the center of the ICA plot. This allows you to quickly identify
-problematic EAs.
+problematic EAs and adjust point markings as necessary. 
 
 .. figure::  _static/sort_by_oddity.png
-   :scale: 80%
+   :scale: 60%
    :alt: Oddity
    :align: center
 
-Perhaps this ensemble average (pointed to in the ICA plot) is due to a bad B-point. We can 
-check the subject's B-points in the bottom right plot by selecting their subject ID. Aha
-the B-point is misplaced. We see this in the waveform plot on the bottom left and the B-point
-plot on the bottom right. 
+To view all point markings (not just the B-points) toggle the bottom window to **All Signals**.
+There you can adjust the placement of any of the inflection points. If the data for a specific 
+EA is too noisy or you decide you don't want to include it in analyses for whatever reason 
+simply uncheck the *Usable* button at the bottom of this window and that EA will be removed 
+from the dataset. 
 
-.. figure::  _static/bad_bpoint.png
-   :scale: 80%
-   :alt: Bad B
-   :align: center
-
-By dragging the B-point to the correct location we see the outlier goes away in the subject's
-plot. 
-
-.. figure::  _static/fixed_bpoint.png
-   :scale: 80%
-   :alt: Fixed B
+.. figure::  _static/analyze_usable.png
+   :scale: 90%
+   :alt: Usable button
    :align: center
    
-If MEAP's automatic point marker fails to mark a point, the event ID column will be highlighted 
-in magenta. If you then click on that EA, the point that failed will be highlighted in red.
+Using these point markings MEAP calculates the following cardiovascular indices:
 
-.. figure::  _static/magenta_failed_point_warning.png
+	1. **Total Peripheral Resistance** (TPR)
+	2. **Cardiac Output** (CO)
+	3. **Stroke Volume** (SV)
+	4. **Pre-Ejection Period** (PEP)
+	5. **Mean Arterial Pressure** (MAP)
+	6. **Heart Rate** (HR)
+	7. **Heart Rate Variability** (HRV) 
+	
+All of these values for each EA will be exported to your excel output file:
+
+.. figure::  _static/output_file.png
    :scale: 80%
-   :alt: EA GUI
+   :alt: Usable button
    :align: center
    
-If the EA is too messy to correctly identify points, it can be removed from analyses by 
-unchecking the "usable" button in the bottom left corner. 
-   
-Step 3: Save Your Work
+
+Step 3: Save Your Work!!
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Click the "Save Results" button in the upper right corner of the GUI to save your work. 
+Click the "Save Results" button at the top of the GUI to save your work. 
 Do this frequently as you are working. All of your custom point markings will be saved and 
 you can reload and return to them by using the newly created output spreadsheet as input. 
+
+
 
 PART III: Analyzing your Scored Data
 ============================================================
@@ -681,8 +697,8 @@ At this point you have completed the data scoring process. You now have a ``.csv
 with values for each cardiovascular index for each ensemble average. Your data should 
 look something like this:
 
-.. figure::  _static/data_output.png
-   :scale: 60%
+.. figure::  _static/excel_output.png
+   :scale: 70%
    :alt: Data Output
    :align: center
    

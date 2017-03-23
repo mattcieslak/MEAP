@@ -39,7 +39,8 @@ exe = EXE(pyz,
           debug=False,
           strip=None,
           upx=True,
-          console=True )
+          console=True,
+          icon="C:\\Users\\Conda\\MEAP\\meap\\resources\\meap.ico" )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
