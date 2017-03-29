@@ -126,8 +126,12 @@ class BeatTrain(HasTraits):
             return
         
         if not self.fitted:
-            self.fits = FastICA(n_components=2).fit(self.beat_features)
-            self.fitted = True
+            try:
+                self.fits = FastICA(n_components=2).fit(self.beat_features)
+                self.fitted = True
+            except Exception,e:
+                logger.info(e)
+                return
         
         transform_2d = self.fits.transform(self.beat_features)
         
