@@ -34,7 +34,7 @@ else :
 # MEAP only knows what to do with a couple of signals
 SUPPORTED_SIGNALS=["ecg", "ecg2", "dzdt", "z0", "bp",
                    "respiration","systolic","diastolic",
-                   "mri_trigger", "event", "pulse_ox"]
+                   "mri_trigger", "event", "pulse_ox", "doppler"]
 
 SMOOTHING_WINDOWS=("hanning", "flat", "hamming", "bartlett", "blackman")
 
@@ -51,7 +51,8 @@ colors = {"ecg":"green",
           "diastolic":"purple",
           "pulse_ox":"gray",
           "event":"darkgreen",
-          "mri_trigger":"darkred"
+          "mri_trigger":"darkred",
+          "doppler":"maroon"
          }
 
 # Signals which can be ensemble-averaged
@@ -65,7 +66,8 @@ ENSEMBLE_SIGNALS = set((
     "bp",
     "systolic",
     "diastolic",
-    "pulse_ox"
+    "pulse_ox",
+    "doppler"
     ))
 
 from pyface.image_resource import ImageResource

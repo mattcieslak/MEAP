@@ -54,6 +54,7 @@ class DataPlot(HasTraits):
     sbp_ts = Instance(TimeSeries)
     dbp_ts = Instance(TimeSeries)
     bp_ts = Instance(TimeSeries)
+    doppler_ts = Instance(TimeSeries)
     
     # Plotting traits
     start_time = Range(0,10000.0, initial=0.0)

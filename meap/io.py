@@ -33,6 +33,8 @@ class MEAPConfig(HasTraits):
     ecg_post_peak = CInt(400) #Range(low=100, high=700, value=400)
     dzdt_pre_peak = CInt(300) #Range(50, 500, value=300)
     dzdt_post_peak = CInt(700) #Range(100, 1000, value=700)
+    doppler_pre_peak = CInt(300) #Range(50, 500, value=300)
+    doppler_post_peak = CInt(700) #Range(100, 1000, value=700)
     bp_pre_peak = CInt(300) #Range(50, 500, value=300)
     bp_post_peak = CInt(1000) #Range(100, 2500, value=1200)
     stroke_volume_equation = Enum("Kubicek","Sramek-Bernstein")
@@ -395,7 +397,29 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.dzdt_data,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
-
+    
+    # Doppler radar
+    doppler_winsor_min = CFloat(0.005)
+    doppler_winsor_max = CFloat(0.005)
+    doppler_winsorize = CBool(False)
+    doppler_included = CBool(False)
+    doppler_decimated = CBool(False)
+    doppler_channel_name = CStr("")
+    doppler_sampling_rate = CFloat(1000)
+    doppler_sampling_rate_unit = CStr("Hz")
+    doppler_unit = CStr("Ohms/Sec")
+    doppler_start_time = CFloat(0.)
+    doppler_data = Array
+    doppler_matrix = Property(Array,depends_on="peak_indices")
+    mea_doppler_matrix = Array
+    @cached_property
+    def _get_doppler_matrix(self):
+        if self.peak_indices.size == 0: return np.array([])
+        return peak_stack(self.peak_indices,self.doppler_data,
+                          pre_msec=self.doppler_pre_peak,post_msec=self.doppler_post_peak,
+                          sampling_rate=self.doppler_sampling_rate)
+    
+    # Respiration
     resp_corrected_dzdt_matrix = Property(Array,depends_on="peak_indices")
     mea_resp_corrected_dzdt_matrix = Array
     @cached_property
@@ -689,6 +713,8 @@ class PhysioData(HasTraits):
     dzdt_post_peak = PrototypedFrom("config")
     bp_pre_peak = PrototypedFrom("config")
     bp_post_peak = PrototypedFrom("config")
+    doppler_pre_peak = PrototypedFrom("config")
+    doppler_post_peak = PrototypedFrom("config")
     stroke_volume_equation = PrototypedFrom("config")
 
     # parameters for respiration analysis

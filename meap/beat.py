@@ -31,6 +31,7 @@ class TimepointColumn(ObjectColumn):
 plt_offsets = {
         "ecg": 0.0,
         "dzdt":1.1,
+        "doppler": 1.1,
         "sbp":2.2,
         "dbp":2.2,
         "bp":2.2,
@@ -40,6 +41,7 @@ plt_offsets = {
 plt_scalars = {
         "ecg": 1.,
         "dzdt":1,
+        "doppler":1.,
         "sbp":0.5,
         "dbp":0.5,
         "bp":0.5,
@@ -190,6 +192,12 @@ class HeartBeat(HasTraits):
                 else:
                     setattr(self, signal + "_signal", 
                         getattr(self.physiodata,mat_prefix + signal+"_matrix")[self.id])
+                if signal == "doppler":
+                    self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                    self.ddddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+                if signal == "dzdt":
+                    self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
+                    self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
 
     def _set_default_times(self):
         # Set the default times to be consistent with physiodata
@@ -249,7 +257,7 @@ class HeartBeat(HasTraits):
 
     def update_plot(self):
         if self.plotdata is None: return
-        for signal in ("dzdt", "ecg", "z0"):
+        for signal in ("dzdt", "ecg", "z0", "doppler"):
             if not signal in self.physiodata.contents: continue
             scalar,offset = plt_scalars[signal], plt_offsets[signal]
             setattr(self, "plt_" + signal, 
@@ -588,11 +596,6 @@ class HeartBeat(HasTraits):
         # Triggers listener on beat_train 
         self.point_updated = True
 
-    def _dzdt_signal_changed(self):
-        # recompute the dzdt tangent for plotting
-        self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
-        self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
-    
     def _btool_t_selection_changed(self):
         logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
         self.b.set_time(self.btool_t_selection)
@@ -613,15 +616,32 @@ class HeartBeat(HasTraits):
         Instead of defining these in __init__, only
         construct the plots when a ui is requested
         """
+        plot_doppler = "doppler" in self.physiodata.contents
+        def quick_norm(signal,ref_signal):
+            sig = normalize(signal)
+            sig = sig * (ref_signal.max() - ref_signal.min()) + ref_signal.min()
+            return sig
+        if plot_doppler:
+            plt_doppler_signal = quick_norm(self.doppler_signal, self.dzdt_signal)
+            plt_ddoppler_signal = quick_norm(self.ddoppler_signal, self.ddzdt_signal)
+            plt_dddoppler_signal = quick_norm(self.dddoppler_signal, self.dddzdt_signal)
+        
         #self._dzdt_signal_changed()
         _time = ArrayDataSource(self.dzdt_time,sort_order="ascending")
         self.dzdt_plotdata = ArrayPlotData(time = _time, 
                                            dzdt_signal = self.dzdt_signal,
                                            ddzdt_signal = self.ddzdt_signal,
-                                           dddzdt_signal = self.dddzdt_signal
+                                           dddzdt_signal = self.dddzdt_signal,
+                                           doppler_signal = plt_doppler_signal,
+                                           ddoppler_signal = plt_ddoppler_signal,
+                                           dddoppler_signal = plt_dddoppler_signal
                                          )
+        
         # Create the plots and tools/overlays
         main_plot = Plot(self.dzdt_plotdata,title="dZ/dt: R to C",padding=20)
+        if plot_doppler:
+            main_plot_doppler = main_plot.plot(("time","doppler_signal"), line_width=3, 
+                color=colors['doppler'])[0]
         main_plot_line = main_plot.plot(("time","dzdt_signal"), line_width=3, 
                 color=colors['dzdt'])[0]
         main_plot_btool = BTool(line_plot=main_plot_line, component=main_plot)
@@ -634,6 +654,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", main_plot_bmarker)
 
         submain_plot = Plot(self.dzdt_plotdata,title="dZ/dt: Full Signal",padding=20)
+        if plot_doppler:
+            submain_plot_doppler = submain_plot.plot(("time","doppler_signal"), line_width=3, 
+                color=colors['doppler'])[0]
         submain_plot_line = submain_plot.plot(("time","dzdt_signal"), line_width=3, 
                 color=colors['dzdt'])[0]
         submain_plot_btool = BTool(line_plot=submain_plot_line, component=submain_plot)
@@ -648,6 +671,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", submain_plot_bmarker)
         
         d1_plot = Plot(self.dzdt_plotdata,title="First Derivative",padding=20)
+        if plot_doppler:
+            d1_plot_doppler = d1_plot.plot(("time","ddoppler_signal"),line_width=3,
+                    color=colors['doppler'])[0]
         d1_plot_line = d1_plot.plot(("time","ddzdt_signal"),line_width=3,
                 color=colors['dzdt'])[0]
         d1_plot_btool = BTool(line_plot=d1_plot_line, component=d1_plot)
@@ -660,6 +686,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", d1_plot_bmarker)
 
         d2_plot = Plot(self.dzdt_plotdata,title="Second Derivative",padding=20)
+        if plot_doppler:
+            d2_plot_line = d2_plot.plot(("time","dddoppler_signal"),line_width=3,
+                    color=colors['doppler'])[0]
         d2_plot_line = d2_plot.plot(("time","dddzdt_signal"),line_width=3,
                 color=colors['dzdt'])[0]
         d2_plot_btool = BTool(line_plot=d2_plot_line, component=d2_plot)
@@ -824,6 +853,12 @@ class EnsembleAveragedHeartBeat(HeartBeat):
                 self.ecg_signal = sig
             else:
                 setattr(self, signal + "_signal", sig)
+            if signal == "doppler":
+                self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+            if signal == "dzdt":
+                self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
+                self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
         
 class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
     marking_strategy = "heuristic"

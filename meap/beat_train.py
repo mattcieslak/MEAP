@@ -50,6 +50,7 @@ class BeatTrain(HasTraits):
     bp_matrix = DelegatesTo("physiodata") 
     systolic_matrix = DelegatesTo("physiodata")
     diastolic_matrix = DelegatesTo("physiodata")
+    doppler_matrix = DelegatesTo("physiodata")
     censored_intervals = DelegatesTo("physiodata")
     use_trimmed_co = DelegatesTo("physiodata")
     censored_secs_before = DelegatesTo("physiodata")
