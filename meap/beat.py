@@ -194,7 +194,7 @@ class HeartBeat(HasTraits):
                         getattr(self.physiodata,mat_prefix + signal+"_matrix")[self.id])
                 if signal == "doppler":
                     self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
-                    self.ddddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+                    self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
                 if signal == "dzdt":
                     self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
                     self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
