@@ -314,9 +314,8 @@ class MovingEnsembler(HasTraits):
             logger.info("attempting to load %s", self.bpoint_classifier_file)
             try:
                 clf = joblib.load(self.bpoint_classifier_file)
-                self.bpoint_classifier = BPointClassifier(
+                return BPointClassifier(
                     physiodata=self.physiodata, classifier=clf)
-                logger.info("success")
             except Exception, e:
                 logger.info("unable to load classifier file")
                 logger.info(e)

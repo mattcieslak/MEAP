@@ -109,7 +109,7 @@ class BPointClassifier(HasTraits):
         post_msec = self.post_point_msec
         r_ind = self.physiodata.r_indices[beatnum]
         c_ind = self.physiodata.c_indices[beatnum]
-        _sig = self.physiodata.mea_dzdt_matrix[beatnum]
+        _sig = self.physiodata.mea_dzdt_matrix[beatnum][:]
         # The targets are msec from the b-point
         if include_derivative:
             signal = [np.concatenate([_sig[(ind-pre_msec):(ind+post_msec+1)],
