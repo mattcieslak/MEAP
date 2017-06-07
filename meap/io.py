@@ -325,6 +325,8 @@ class PhysioData(HasTraits):
     bpoint_classifier_false_distance_min =PrototypedFrom("config")
     bpoint_classifier_use_bpoint_prior =PrototypedFrom("config")
     bpoint_classifier_include_derivative =PrototypedFrom("config")
+    # Contains errors in msec from bpoint cross validation
+    bpoint_classifier_cv_error = Array
 
     # DTWEA parameters
     dtw_ecg_warping_penalty = PrototypedFrom('config')
@@ -406,6 +408,7 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.resp_corrected_dzdt,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
+    
 
     # ECG
     ecg_included = CBool(False)

@@ -182,45 +182,51 @@ class BPointClassifier(HasTraits):
             return False
         return True
 
-    def check_performance(self):
+    def check_performance(self, k = 10):
         logger.info("Checking classifier performance...")
         orig_sd = np.std(self.bpoint_prior)
         samples, labels = self.make_training_set()
         classifier = deepcopy(self.classifier)
-        
+        chunks = np.arange(len(samples)) % k
         progress = ProgressDialog(title="B-Point Classifier Cross Validation", min=0,
                 max = len(labels), show_time=True,
                 message="Cross validating the classifier...")
         progress.open()
 
         errors = []
-        for i in  range(len(labels)):
-            training_samples =  [ s for _i,s in enumerate(samples) if _i != i ]
-            training_labels = [ s for _i,s in enumerate(labels) if _i != i ]
-            testing_sample = samples[i]
-            testing_labels = labels[i]
+        for i in  range(k):
+            logger.info("Fold: %d", i)
+            
+            training_samples =  [ s for s,c in zip(samples,chunks) if  c != i ]
+            training_labels = [ l for l,c in zip(labels,chunks) if c != i ]
+            testing_samples = [ s for s,c in zip(samples,chunks) if  c == i ]
+            testing_labels = [ l for l,c in zip(labels,chunks) if c == i ]
+            logger.info("Training on %d samples, testing %d left out samples", 
+                        len(training_samples),len(testing_samples))
 
             classifier.fit(np.row_stack(training_samples), 
                                 np.concatenate(training_labels))
 
-            prediction = np.abs(classifier.predict(testing_sample))
-            multi_estimates = prediction == prediction.min()
-            total_mins = multi_estimates.sum()
-            if total_mins > 1:
-                guess = np.flatnonzero(multi_estimates).mean()
-            else:
-                guess = np.argmin(prediction)
+            for testing_sample, testing_label in zip(testing_samples,testing_labels):
+                prediction = np.abs(classifier.predict(testing_sample))
+                multi_estimates = prediction == prediction.min()
+                total_mins = multi_estimates.sum()
+                if total_mins > 1:
+                    guess = np.flatnonzero(multi_estimates).mean()
+                else:
+                    guess = np.argmin(prediction)
 
-            errors.append( np.argmin(np.abs(testing_labels)) - guess )
-            logger.info("Sample %d error: %.2f msec",i, errors[-1])
+                errors.append( np.argmin(np.abs(testing_label)) - guess )
+                logger.info("Sample %d error: %.2f msec",i, errors[-1])
             (cont,skip) = progress.update(i)
         (cont,skip) = progress.update(i+1)
             
         errors = np.array(errors)
+        self.physiodata.bpoint_classifier_cv_error[self.physiodata.hand_labeled > 0] = errors
         messagebox(
             """
             Training completed on %d samples
             Prediction error: %.4fmsec (+- %.4f)
             Original sd %.4f
-            """%(samples.shape[0],
+            """%(len(samples),
             errors.mean(), errors.std(), orig_sd))

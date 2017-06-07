@@ -56,7 +56,7 @@ from sklearn.linear_model import LinearRegression
 
 condition_table = TableEditor(
     columns = [
-        CheckboxColumn(name="plot"),
+        #CheckboxColumn(name="plot"),
         ObjectColumn(name="name"),
         ColorColumn(name="color")
     ]

@@ -52,7 +52,7 @@ channel_table = TableEditor(
     [ ObjectColumn(name="name",editable=False),
       ObjectColumn(name="contains",editable=True),
       ObjectColumn(name="sampling_rate",editable=False),
-      CheckboxColumn(name="decimate",editable=True)
+      #CheckboxColumn(name="decimate",editable=True)
     ],
     auto_size=True,
 )
