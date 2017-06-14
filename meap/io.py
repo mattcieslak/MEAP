@@ -1,5 +1,5 @@
 from meap import (fail, __version__, ENSEMBLE_SIGNALS, 
-                  SMOOTHING_WINDOWS)
+                  SMOOTHING_WINDOWS, messagebox)
 import os
 import tempfile
 
@@ -327,6 +327,8 @@ class PhysioData(HasTraits):
     bpoint_classifier_false_distance_min =PrototypedFrom("config")
     bpoint_classifier_use_bpoint_prior =PrototypedFrom("config")
     bpoint_classifier_include_derivative =PrototypedFrom("config")
+    # Contains errors in msec from bpoint cross validation
+    bpoint_classifier_cv_error = Array
 
     # DTWEA parameters
     dtw_ecg_warping_penalty = PrototypedFrom('config')
@@ -393,6 +395,7 @@ class PhysioData(HasTraits):
     mea_dzdt_matrix = Array
     @cached_property
     def _get_dzdt_matrix(self):
+        logger.info("constructing dZ/dt matrix")
         if self.peak_indices.size == 0: return np.array([])
         return peak_stack(self.peak_indices,self.dzdt_data,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
@@ -429,6 +432,7 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.resp_corrected_dzdt,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
+    
 
     # ECG
     ecg_included = CBool(False)
@@ -744,6 +748,7 @@ class PhysioData(HasTraits):
     ens_avg_diastole_time = CFloat
     using_hand_marked_point_priors = CBool(False)
 
+    censored_secs_before = Array
     # MEA Physio timeseries
     lvet = Array
     co = Array
@@ -795,10 +800,11 @@ class PhysioData(HasTraits):
             except Exception, e:
                 logger.warn("unable to save %s because of %s", k,e)
         tmp.close()
-        savemat(outfile, savedict,long_field_names=True)
-        if not os.path.exists(outfile+".mat"):
-            logger.critical("failed to save %s.mat", outfile)
-
+        try:
+            savemat(outfile, savedict,long_field_names=True)
+        except Exception,e:
+            messagebox("Failed to save %s:\n\n%s"%(outfile,e))
+            
 def load_from_disk(matfile, config=None,verbose=False):
     """
     Loads a .mea file from disk

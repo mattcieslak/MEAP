@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 beat_table = TableEditor(
     columns =
     [   ObjectColumn(name="id",editable=False),
-        CheckboxColumn(name="hand_labeled",editable=False)
+        #CheckboxColumn(name="hand_labeled",editable=False)
     ],
     auto_size  = True,
     show_toolbar = True,
@@ -172,6 +172,7 @@ class BeatTrain(HasTraits):
     
     @on_trait_change("beats.point_updated")
     def point_hand_labeled(self):
+        logger.info("beats.point_updated")
         self.update_param_plot()
         self.calculate_outliers()
         

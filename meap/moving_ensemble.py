@@ -304,6 +304,12 @@ class MovingEnsembler(HasTraits):
         logger.info("Marked points for mea_beat_train in %.2f seconds", t1-t0)
         self.calculate_physio()
         self.dirty=False
+        
+    def _fix_garbled_mea_mats(self):
+        if self.mea_window_type == "Beats":
+            self._n_neighbor_moving_ensemble()
+        elif self.mea_window_type == "Seconds":
+            self._time_window_moving_ensemble()
 
     def _b_apply_weighting_fired(self):
         self.apply_weighting("button_request")
@@ -314,9 +320,8 @@ class MovingEnsembler(HasTraits):
             logger.info("attempting to load %s", self.bpoint_classifier_file)
             try:
                 clf = joblib.load(self.bpoint_classifier_file)
-                self.bpoint_classifier = BPointClassifier(
+                return BPointClassifier(
                     physiodata=self.physiodata, classifier=clf)
-                logger.info("success")
             except Exception, e:
                 logger.info("unable to load classifier file")
                 logger.info(e)
@@ -447,7 +452,7 @@ class MovingEnsembler(HasTraits):
             beat_viewer = MEABeatTrain(physiodata=self.physiodata)
             beats = [self.mea_beat_train.beats[n] for n in selection]
             beat_viewer.set_beats(beats)
-            beat_viewer.edit_traits()
+            beat_viewer.edit_traits(kind="livemodal")
 
     def _selected_beats_default(self):
         return MEABeatTrain(physiodata=self.physiodata)
@@ -531,8 +536,7 @@ class MovingEnsembler(HasTraits):
                  label="Saved since training?",enabled_when='never'),
             Item("b_save",show_label=False),
             Item("b_train",show_label=False),
-            Item("b_test_performance", 
-                 show_label=False,enabled_when='never')),
+            Item("b_test_performance", show_label=False)),
         VGroup(Item("selected_beats",style="custom",show_label=False))),
         resizable=True
     )
