@@ -199,7 +199,12 @@ class BTool(BaseTool, CoordinateLineOverlay):
             t,_ = plot.map_screen((self.time,0))
             self._draw_vertical_line(gc,t)
 
-
+class DBTool(BTool):
+    x_selected_time = Float()
+    def normal_left_down(self,event):
+        # This will trigger the listener on self.beat.
+        self.x_selected_time = self.time
+    
 
 from enable.api import ColorTrait
 
@@ -220,4 +225,4 @@ class BMarker(CoordinateLineOverlay):
         gc.set_stroke_color(self.color_)
         gc.set_line_dash(self.line_style_)        
         t,_ = plot.map_screen((self.time,0))
-        self._draw_vertical_line(gc,t)
+        self._draw_vertical_line(gc,t)        

@@ -131,7 +131,7 @@ class TimePoint(HasTraits):
     value = Float
     index = CInt
     #beat = Instance(meap.beat.HeartBeat)
-    applies_to = Enum("ecg","dzdt","bp","systolic","diastolic")
+    applies_to = Enum("ecg","dzdt","bp","systolic","diastolic","doppler")
     point_type = Enum("max", "min", "inflection",
                     "average","geom_trick","classifier")
     needs_attention = Bool(False)

@@ -42,9 +42,6 @@ from chaco.api import marker_trait, DataRange1D, gist_rainbow
 from scipy.interpolate import interp1d
 from sklearn.decomposition import FastICA
 
-from traitsui.extras.checkbox_column \
-    import CheckboxColumn
-
 from traitsui.color_column \
      import ColorColumn
 from enable.api \
@@ -56,7 +53,6 @@ from sklearn.linear_model import LinearRegression
 
 condition_table = TableEditor(
     columns = [
-        #CheckboxColumn(name="plot"),
         ObjectColumn(name="name"),
         ColorColumn(name="color")
     ]

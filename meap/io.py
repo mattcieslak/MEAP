@@ -3,10 +3,10 @@ from meap import (fail, __version__, ENSEMBLE_SIGNALS,
 import os
 import tempfile
 
-from traits.api import (HasTraits, CStr, Array, CFloat, CInt,
+from traits.api import (HasTraits, CStr, Array, CFloat, CInt,Str,
                         Bool, Enum, Instance, File,Property,
                         Range,Int, List, PrototypedFrom,cached_property,
-                        CBool, CArray, Set)
+                        CBool, CArray, Set, CList)
 from traitsui.api import Item, Group
 
 from scipy.io.matlab import savemat, loadmat
@@ -155,6 +155,12 @@ class MEAPConfig(HasTraits):
     bpoint_classifier_false_distance_min = CInt(5)
     bpoint_classifier_use_bpoint_prior = CBool(True)
     bpoint_classifier_include_derivative = CBool(True)
+    
+    # Doppler D point config
+    db_point_type = Enum("min", "max")
+    db_point_window_len = CInt(20)
+    dx_point_type = Enum("min", "max")
+    dx_point_window_len = CInt(20)
 
 
 def load_config(config_path):
@@ -206,6 +212,17 @@ class PhysioData(HasTraits):
     """
     Contains the parameters needed to run a MEAP session
     """
+    
+    available_widgets = List
+    def __init__(self,**traits):
+        super(PhysioData,self).__init__(**traits)
+        available_panels = ["Annotation"]
+        if "dzdt" in self.contents and "z0" in self.contents:
+            available_panels.append("ICG B Point")
+        if "doppler" in self.contents:
+            available_panels.append("Doppler")
+        self.available_widgets = available_panels
+        
 
     contents = Property(Set)
     def _get_contents(self):
@@ -351,6 +368,12 @@ class PhysioData(HasTraits):
     dtw_dzdt_metric = PrototypedFrom('config')
     dtw_dzdt_k = PrototypedFrom('config')
     dtw_dzdt_used = PrototypedFrom('config')
+    
+    dx_point_type = PrototypedFrom("config")
+    dx_point_window_len = PrototypedFrom("config") 
+    db_point_type = PrototypedFrom("config")
+    db_point_window_len = PrototypedFrom("config") 
+    
     # Impedance Data
     z0_winsor_min = CFloat(0.005)
     z0_winsor_max = CFloat(0.005)
@@ -625,6 +648,20 @@ class PhysioData(HasTraits):
     diastole_indices = Instance(np.ndarray)
     def _diastole_indices_default(self):
         return np.zeros_like(self.peak_indices)
+    
+    # Indices for doppler 
+    db_indices = Instance(np.ndarray) 
+    def _db_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    db_indices = Instance(np.ndarray) 
+    def _db_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    dx_indices = Instance(np.ndarray) 
+    def _dx_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    dx_indices = Instance(np.ndarray) 
+    def _dx_indices_default(self):
+        return np.zeros_like(self.peak_indices)
 
     # --- Subject information
     subject_age = CFloat(0.)
@@ -769,6 +806,7 @@ class PhysioData(HasTraits):
 
     # Storing and accessing the bpoint classifier
     bpoint_classifier_file = File
+    
 
     def save(self,outfile):
         # Populate matfile-friendly data structures for censoring regions
@@ -776,6 +814,8 @@ class PhysioData(HasTraits):
         save_attrs = []
         for k in self.editable_traits():
             if k.endswith("ts"):
+                continue
+            if k == "available_widgets":
                 continue
             if k == "bpoint_classifier":
                 continue
@@ -854,7 +894,6 @@ def load_from_disk(matfile, config=None,verbose=False):
                     tdict[k] = cls(v.squeeze())
                 elif cls is np.ndarray:
                     if k.endswith("indices") or k=="usable":
-                        logger.info("casting %s to int",k)
                         tdict[k] = v.squeeze().astype(np.int)
                     else:
                         tdict[k] = v.squeeze()
