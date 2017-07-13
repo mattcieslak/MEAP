@@ -196,8 +196,12 @@ class TimePoint(HasTraits):
                              [roi[0],roi[-1]]
                             )
             t_ind = r_idx + np.argmax(line-roi)
+            
+        # Average is a special case. 
         elif self.point_type == "average":
             unmarked_point.value = ts.mean()
+            unmarked_point.set_index(0)
+            return
 
         # Check that we aren't hitting an edge of the search reg
         if t_ind in (window_min_idx,window_max_idx):
@@ -315,8 +319,8 @@ class TimeSeries(HasTraits):
         if self.winsorize:
             logger.info("Winsorizing %s with limits=(%.5f%.5f)",self.name,self.winsor_min, self.winsor_max)
             # Take the original data and replace it with the winsorized version
-            self.data = winsorize(self.winsor_swap,
-                                  limits=(self.winsor_min,self.winsor_max))
+            self.data = np.array(winsorize(self.winsor_swap,
+                                  limits=(self.winsor_min,self.winsor_max)))
             setattr(self.physiodata,self.name+"_winsor_min",self.winsor_min)
             setattr(self.physiodata,self.name+"_winsor_max",self.winsor_max)
             
@@ -393,10 +397,10 @@ class TimeSeries(HasTraits):
             Item("b_add_censor",show_label=False), 
             #Item("b_info"), 
             #Item("b_zoom_y"), 
-            Item("b_clear_censoring",show_label=False), 
             Item("winsorize",enabled_when="winsor_enable"),
             Item("winsor_max",enabled_when="winsor_enable",format_str="%.4f",width=25),
             Item("winsor_min",enabled_when="winsor_enable",format_str="%.4f",width=25),
+            Item("b_clear_censoring",show_label=False), 
             show_labels=True,show_border=True)
     widgets = HSplit(
         Item('plot',editor=ComponentEditor(), show_label=False),

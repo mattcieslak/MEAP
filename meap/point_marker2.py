@@ -156,8 +156,8 @@ class BTool(BaseTool, CoordinateLineOverlay):
     line_plot = Any()
 
     # Time trait that can be set externally
-    time = CFloat()
-    selected_time = CFloat()
+    time = Float()
+    selected_time = Float()
     
     # Whether to draw the overlay
     visible=True
@@ -202,7 +202,7 @@ class BTool(BaseTool, CoordinateLineOverlay):
             self._draw_vertical_line(gc,t)
 
 class DBTool(BTool):
-    x_selected_time = CFloat()
+    x_selected_time = Float()
     def normal_left_down(self,event):
         # This will trigger the listener on self.beat.
         self.x_selected_time = self.time
@@ -214,13 +214,13 @@ class BMarker(CoordinateLineOverlay):
     """
     Static marker for the b-point
     """
-    time = CFloat()
+    time = Float()
     
     # Whether to draw the overlay
     visible=True
 
     def _time_changed(self):
-        logger.info("time changed in BMarker")
+        #logger.info("time changed in BMarker")
         self.request_redraw()
 
     def overlay(self, plot, gc, view_bounds=None, mode="normal"):

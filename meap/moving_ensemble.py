@@ -329,9 +329,6 @@ class MovingEnsembler(HasTraits):
         return BPointClassifier(physiodata=self.physiodata)
 
     def _b_apply_clf_fired(self):
-        if self.physiodata.hand_labeled.sum() == 0:
-            messagebox("You have to handlabel some heartbeats first")
-            return
         if not self.bpoint_classifier.trained:
             messagebox("Classifier is not trained yet!")
             return
@@ -537,6 +534,6 @@ class MovingEnsembler(HasTraits):
             Item("b_save",show_label=False),
             Item("b_train",show_label=False),
             Item("b_test_performance", show_label=False)),
-        VGroup(Item("selected_beats",style="custom",show_label=False))),
+        HGroup(Item("selected_beats",style="custom",show_label=False))),
         resizable=True
     )

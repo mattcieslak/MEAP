@@ -32,8 +32,8 @@ plt_offsets = {
         "ecg": 0.0,
         "dzdt":1.1,
         "doppler": 1.1,
-        "sbp":2.2,
-        "dbp":2.2,
+        "systolic":2.2,
+        "diastolic":2.2,
         "bp":2.2,
         "z0":3.3
         }
@@ -42,8 +42,8 @@ plt_scalars = {
         "ecg": 1.,
         "dzdt":1,
         "doppler":1.,
-        "sbp":0.5,
-        "dbp":0.5,
+        "systolic":0.5,
+        "diastolic":0.5,
         "bp":0.5,
         "z0":0.5
         }
@@ -226,6 +226,7 @@ class HeartBeat(HasTraits):
                 if signal == "dzdt":
                     self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
                     self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
+                    
 
     def _set_default_times(self):
         # Set the default times to be consistent with physiodata
@@ -238,7 +239,7 @@ class HeartBeat(HasTraits):
                     ("z0","resp_corrected_z0","resp_corrected_dzdt") else "dzdt" 
             pre_msec = getattr(self.physiodata, _signal + "_pre_peak")
             sig = getattr(self, _signal + "_signal")
-            setattr(self, signal + "_time", np.arange(sig.shape[0])-pre_msec)
+            setattr(self, signal + "_time", np.arange(sig.shape[0], dtype=np.float)-pre_msec)
 
     def _set_points(self):
         # Create points from each signal
@@ -276,7 +277,7 @@ class HeartBeat(HasTraits):
                   name="systole", applies_to="bp",point_type="max",beat=self)
             points["diastole"] = TimePoint(
                   name="diastole", applies_to="bp",point_type="min",beat=self)
-        if "sbp" in self.physiodata.contents and "dbp" in self.physiodata.contents:
+        if "systolic" in self.physiodata.contents and "diastolic" in self.physiodata.contents:
             points["systole"] = TimePoint(name="systole", 
                   applies_to="systolic", point_type="average",beat=self)
             points["diastole"] = TimePoint(name="diastole", 

@@ -23,9 +23,15 @@ from sklearn.decomposition import FastICA
 import logging
 logger = logging.getLogger(__name__)
 
+class LabelStatusColumn(ObjectColumn):
+    def get_cell_color(self,object):
+        if hasattr(object, "hand_labeled"):
+            if object.hand_labeled: return "pink"
+        
+
 beat_table = TableEditor(
     columns =
-    [ObjectColumn(name="id",editable=False)],
+    [LabelStatusColumn(name="id",editable=False)],
     auto_size  = True,
     show_toolbar = True,
     edit_view="traits_view",
@@ -442,7 +448,7 @@ class BeatTrain(HasTraits):
         win_title = "Order Panels"
     )
     
-    def _b_change_panel_order_fired(self):
+    def _b_order_plots_fired(self):
         self.edit_traits(view="panel_order_view")
         
 class MEABeatTrain(BeatTrain):

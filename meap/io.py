@@ -37,6 +37,10 @@ class MEAPConfig(HasTraits):
     doppler_post_peak = CInt(700) #Range(100, 1000, value=700)
     bp_pre_peak = CInt(300) #Range(50, 500, value=300)
     bp_post_peak = CInt(1000) #Range(100, 2500, value=1200)
+    systolic_pre_peak = CInt(300) #Range(50, 500, value=300)
+    systolic_post_peak = CInt(1000) #Range(100, 2500, value=1200)
+    diastolic_pre_peak = CInt(300) #Range(50, 500, value=300)
+    diastolic_post_peak = CInt(1000) #Range(100, 2500, value=1200)
     stroke_volume_equation = Enum("Kubicek","Sramek-Bernstein")
     extraction_group = Group(
         Group(
@@ -537,7 +541,7 @@ class PhysioData(HasTraits):
     mea_systolic_matrix = Array
     @cached_property
     def _get_systolic_matrix(self):
-        if self.peak_indices.size == 0 or self.using_continuous_bp: 
+        if self.peak_indices.size == 0 or not ("systolic" in self.contents): 
             return np.array([])
         return peak_stack(self.peak_indices,self.systolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -559,7 +563,7 @@ class PhysioData(HasTraits):
     mea_diastolic_matrix = Array
     @cached_property
     def _get_diastolic_matrix(self):
-        if self.peak_indices.size == 0 or not ("dbp" in self.contents): 
+        if self.peak_indices.size == 0 or not ("diastolic" in self.contents): 
             return np.array([])
         return peak_stack(self.peak_indices,self.diastolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -754,6 +758,10 @@ class PhysioData(HasTraits):
     dzdt_post_peak = PrototypedFrom("config")
     bp_pre_peak = PrototypedFrom("config")
     bp_post_peak = PrototypedFrom("config")
+    systolic_pre_peak = PrototypedFrom("config")
+    systolic_post_peak = PrototypedFrom("config")
+    diastolic_pre_peak = PrototypedFrom("config")
+    diastolic_post_peak = PrototypedFrom("config")
     doppler_pre_peak = PrototypedFrom("config")
     doppler_post_peak = PrototypedFrom("config")
     stroke_volume_equation = PrototypedFrom("config")
