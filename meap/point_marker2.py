@@ -4,7 +4,7 @@ import numpy as np
 # Enthought library imports
 from enable.tools.api import DragTool
 from traits.api import ( Instance, Int, Tuple, Event,
-      Any,  Array, Enum, Float, CInt)
+      Any,  Array, Enum, Float, CInt, CFloat, Str)
 # Chaco imports
 from chaco.overlays.coordinate_line_overlay import CoordinateLineOverlay
 from chaco.api import BaseTool    
@@ -17,11 +17,11 @@ class PointDraggingTool(DragTool):
     The PointDraggingTool is only added as a component editor to
     the scatter plot that contains 
     """
-    points = [ "p", "q", "r", "s", "t",
-               "c", "x", "o", #"y",
-               "systole", "diastole","b"
-             ]
-    point_arr = Instance(Array)
+    #points = [ "p", "q", "r", "s", "t",
+    #           "c", "x", "o", #"y",
+    #           "systole", "diastole","b"
+    #         ]
+    #point_arr = Instance(Array)
 
     #beat = Instance(HeartBeat)
 
@@ -36,10 +36,11 @@ class PointDraggingTool(DragTool):
     # Event for when the x value of the point is changed
     point_changed = Event
     # which point is being dragged?
-    currently_dragging_point = Enum([ "p", "q", "r", "s", "t",
-                        "b", "c", "x", "o", #"y",
-                        "systole", "diastole"
-                        ])
+    currently_dragging_point = Str()
+                        #Enum([ "p", "q", "r", "s", "t",
+                        #"b", "c", "x", "o", #"y",
+                        #"systole", "diastole"
+                        #])
     current_y = Array
     current_x = Array
     current_time = Float
@@ -73,6 +74,7 @@ class PointDraggingTool(DragTool):
         """ 
         The user has clicked around a point
         """
+        print "Event", event
         plot = self.component
         self.component.name = "dragging_component"
         ndx = plot.map_index((event.x, event.y), self.threshold)
@@ -81,9 +83,9 @@ class PointDraggingTool(DragTool):
         self._drag_index = ndx
         self._orig_value = (plot.index.get_data()[ndx], plot.value.get_data()[ndx])
         # which point was selected        
-        self.currently_dragging_point = self.points[self._drag_index]
+        point = self.beat.points[self._drag_index]
+        self.currently_dragging_point = point.name
         logger.info( "editing %s point", self.currently_dragging_point)
-        point = getattr(self.beat, self.currently_dragging_point)
         self.current_y = getattr(self.beat, "plt_%s" % point.applies_to)
         self.current_x  = getattr(self.beat, "%s_time" % point.applies_to)
 
@@ -199,7 +201,12 @@ class BTool(BaseTool, CoordinateLineOverlay):
             t,_ = plot.map_screen((self.time,0))
             self._draw_vertical_line(gc,t)
 
-
+class DBTool(BTool):
+    x_selected_time = Float()
+    def normal_left_down(self,event):
+        # This will trigger the listener on self.beat.
+        self.x_selected_time = self.time
+    
 
 from enable.api import ColorTrait
 
@@ -213,11 +220,11 @@ class BMarker(CoordinateLineOverlay):
     visible=True
 
     def _time_changed(self):
-        logger.info("time changed in BMarker")
+        #logger.info("time changed in BMarker")
         self.request_redraw()
 
     def overlay(self, plot, gc, view_bounds=None, mode="normal"):
         gc.set_stroke_color(self.color_)
         gc.set_line_dash(self.line_style_)        
         t,_ = plot.map_screen((self.time,0))
-        self._draw_vertical_line(gc,t)
+        self._draw_vertical_line(gc,t)        

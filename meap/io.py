@@ -3,10 +3,10 @@ from meap import (fail, __version__, ENSEMBLE_SIGNALS,
 import os
 import tempfile
 
-from traits.api import (HasTraits, CStr, Array, CFloat, CInt,
+from traits.api import (HasTraits, CStr, Array, CFloat, CInt,Str,
                         Bool, Enum, Instance, File,Property,
                         Range,Int, List, PrototypedFrom,cached_property,
-                        CBool, CArray, Set)
+                        CBool, CArray, Set, CList)
 from traitsui.api import Item, Group
 
 from scipy.io.matlab import savemat, loadmat
@@ -33,8 +33,14 @@ class MEAPConfig(HasTraits):
     ecg_post_peak = CInt(400) #Range(low=100, high=700, value=400)
     dzdt_pre_peak = CInt(300) #Range(50, 500, value=300)
     dzdt_post_peak = CInt(700) #Range(100, 1000, value=700)
+    doppler_pre_peak = CInt(300) #Range(50, 500, value=300)
+    doppler_post_peak = CInt(700) #Range(100, 1000, value=700)
     bp_pre_peak = CInt(300) #Range(50, 500, value=300)
     bp_post_peak = CInt(1000) #Range(100, 2500, value=1200)
+    systolic_pre_peak = CInt(300) #Range(50, 500, value=300)
+    systolic_post_peak = CInt(1000) #Range(100, 2500, value=1200)
+    diastolic_pre_peak = CInt(300) #Range(50, 500, value=300)
+    diastolic_post_peak = CInt(1000) #Range(100, 2500, value=1200)
     stroke_volume_equation = Enum("Kubicek","Sramek-Bernstein")
     extraction_group = Group(
         Group(
@@ -153,6 +159,12 @@ class MEAPConfig(HasTraits):
     bpoint_classifier_false_distance_min = CInt(5)
     bpoint_classifier_use_bpoint_prior = CBool(True)
     bpoint_classifier_include_derivative = CBool(True)
+    
+    # Doppler D point config
+    db_point_type = Enum("min", "max")
+    db_point_window_len = CInt(20)
+    dx_point_type = Enum("min", "max")
+    dx_point_window_len = CInt(20)
 
 
 def load_config(config_path):
@@ -204,6 +216,17 @@ class PhysioData(HasTraits):
     """
     Contains the parameters needed to run a MEAP session
     """
+    
+    available_widgets = List
+    def __init__(self,**traits):
+        super(PhysioData,self).__init__(**traits)
+        available_panels = ["Annotation"]
+        if "dzdt" in self.contents and "z0" in self.contents:
+            available_panels.append("ICG B Point")
+        if "doppler" in self.contents:
+            available_panels.append("Doppler")
+        self.available_widgets = available_panels
+        
 
     contents = Property(Set)
     def _get_contents(self):
@@ -349,6 +372,12 @@ class PhysioData(HasTraits):
     dtw_dzdt_metric = PrototypedFrom('config')
     dtw_dzdt_k = PrototypedFrom('config')
     dtw_dzdt_used = PrototypedFrom('config')
+    
+    dx_point_type = PrototypedFrom("config")
+    dx_point_window_len = PrototypedFrom("config") 
+    db_point_type = PrototypedFrom("config")
+    db_point_window_len = PrototypedFrom("config") 
+    
     # Impedance Data
     z0_winsor_min = CFloat(0.005)
     z0_winsor_max = CFloat(0.005)
@@ -398,7 +427,29 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.dzdt_data,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
-
+    
+    # Doppler radar
+    doppler_winsor_min = CFloat(0.005)
+    doppler_winsor_max = CFloat(0.005)
+    doppler_winsorize = CBool(False)
+    doppler_included = CBool(False)
+    doppler_decimated = CBool(False)
+    doppler_channel_name = CStr("")
+    doppler_sampling_rate = CFloat(1000)
+    doppler_sampling_rate_unit = CStr("Hz")
+    doppler_unit = CStr("Ohms/Sec")
+    doppler_start_time = CFloat(0.)
+    doppler_data = Array
+    doppler_matrix = Property(Array,depends_on="peak_indices")
+    mea_doppler_matrix = Array
+    @cached_property
+    def _get_doppler_matrix(self):
+        if self.peak_indices.size == 0: return np.array([])
+        return peak_stack(self.peak_indices,self.doppler_data,
+                          pre_msec=self.doppler_pre_peak,post_msec=self.doppler_post_peak,
+                          sampling_rate=self.doppler_sampling_rate)
+    
+    # Respiration
     resp_corrected_dzdt_matrix = Property(Array,depends_on="peak_indices")
     mea_resp_corrected_dzdt_matrix = Array
     @cached_property
@@ -490,7 +541,7 @@ class PhysioData(HasTraits):
     mea_systolic_matrix = Array
     @cached_property
     def _get_systolic_matrix(self):
-        if self.peak_indices.size == 0 or self.using_continuous_bp: 
+        if self.peak_indices.size == 0 or not ("systolic" in self.contents): 
             return np.array([])
         return peak_stack(self.peak_indices,self.systolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -512,7 +563,7 @@ class PhysioData(HasTraits):
     mea_diastolic_matrix = Array
     @cached_property
     def _get_diastolic_matrix(self):
-        if self.peak_indices.size == 0 or not ("dbp" in self.contents): 
+        if self.peak_indices.size == 0 or not ("diastolic" in self.contents): 
             return np.array([])
         return peak_stack(self.peak_indices,self.diastolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -600,6 +651,20 @@ class PhysioData(HasTraits):
         return np.zeros_like(self.peak_indices)
     diastole_indices = Instance(np.ndarray)
     def _diastole_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    
+    # Indices for doppler 
+    db_indices = Instance(np.ndarray) 
+    def _db_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    db_indices = Instance(np.ndarray) 
+    def _db_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    dx_indices = Instance(np.ndarray) 
+    def _dx_indices_default(self):
+        return np.zeros_like(self.peak_indices)
+    dx_indices = Instance(np.ndarray) 
+    def _dx_indices_default(self):
         return np.zeros_like(self.peak_indices)
 
     # --- Subject information
@@ -693,6 +758,12 @@ class PhysioData(HasTraits):
     dzdt_post_peak = PrototypedFrom("config")
     bp_pre_peak = PrototypedFrom("config")
     bp_post_peak = PrototypedFrom("config")
+    systolic_pre_peak = PrototypedFrom("config")
+    systolic_post_peak = PrototypedFrom("config")
+    diastolic_pre_peak = PrototypedFrom("config")
+    diastolic_post_peak = PrototypedFrom("config")
+    doppler_pre_peak = PrototypedFrom("config")
+    doppler_post_peak = PrototypedFrom("config")
     stroke_volume_equation = PrototypedFrom("config")
 
     # parameters for respiration analysis
@@ -743,6 +814,7 @@ class PhysioData(HasTraits):
 
     # Storing and accessing the bpoint classifier
     bpoint_classifier_file = File
+    
 
     def save(self,outfile):
         # Populate matfile-friendly data structures for censoring regions
@@ -750,6 +822,8 @@ class PhysioData(HasTraits):
         save_attrs = []
         for k in self.editable_traits():
             if k.endswith("ts"):
+                continue
+            if k == "available_widgets":
                 continue
             if k == "bpoint_classifier":
                 continue
@@ -828,7 +902,6 @@ def load_from_disk(matfile, config=None,verbose=False):
                     tdict[k] = cls(v.squeeze())
                 elif cls is np.ndarray:
                     if k.endswith("indices") or k=="usable":
-                        logger.info("casting %s to int",k)
                         tdict[k] = v.squeeze().astype(np.int)
                     else:
                         tdict[k] = v.squeeze()

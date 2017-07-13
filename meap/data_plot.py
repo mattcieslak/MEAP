@@ -51,9 +51,10 @@ class DataPlot(HasTraits):
     z0_ts = Instance(TimeSeries)
     dzdt_ts = Instance(TimeSeries)
     respiration_ts = Instance(TimeSeries)
-    sbp_ts = Instance(TimeSeries)
-    dbp_ts = Instance(TimeSeries)
+    systolic_ts = Instance(TimeSeries)
+    diastolic_ts = Instance(TimeSeries)
     bp_ts = Instance(TimeSeries)
+    doppler_ts = Instance(TimeSeries)
     
     # Plotting traits
     start_time = Range(0,10000.0, initial=0.0)

@@ -5,8 +5,6 @@ from traitsui.api import ( View, Item, VGroup, HGroup, Group,
      RangeEditor, TableEditor, Handler, Include,HSplit, EnumEditor, HSplit, Action,
      CheckListEditor, ObjectColumn )
 from traitsui.menu import OKButton, CancelButton
-from traitsui.extras.checkbox_column \
-    import CheckboxColumn
 
 import numpy as np
 # importers
@@ -52,7 +50,7 @@ channel_table = TableEditor(
     [ ObjectColumn(name="name",editable=False),
       ObjectColumn(name="contains",editable=True),
       ObjectColumn(name="sampling_rate",editable=False),
-      #CheckboxColumn(name="decimate",editable=True)
+      ObjectColumn(name="decimate",editable=True)
     ],
     auto_size=True,
 )

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-from traits.api import (HasTraits, Array,
+from traits.api import (HasTraits, Array, Button,
           Bool, Enum, Instance, on_trait_change,Property,
-          DelegatesTo, Button, List, cached_property )
+          DelegatesTo, Button, List, cached_property, Button )
 from beat import HeartBeat, GlobalEnsembleAveragedHeartBeat
 #from meap import TimeSeries
 from meap.io import PhysioData
@@ -11,8 +11,7 @@ import numpy as np
 from meap import MEAPView
 # Needed for Tabular adapter
 from traitsui.api import ( Item, TableEditor,
-        ObjectColumn,HGroup,VGroup)
-from traitsui.extras.checkbox_column import CheckboxColumn
+        ObjectColumn,HGroup,VGroup, SetEditor)
 from chaco.api import Plot, ArrayPlotData, ScatterInspectorOverlay
 from chaco.tools.api import ScatterInspector 
 
@@ -24,11 +23,15 @@ from sklearn.decomposition import FastICA
 import logging
 logger = logging.getLogger(__name__)
 
+class LabelStatusColumn(ObjectColumn):
+    def get_cell_color(self,object):
+        if hasattr(object, "hand_labeled"):
+            if object.hand_labeled: return "pink"
+        
+
 beat_table = TableEditor(
     columns =
-    [   ObjectColumn(name="id",editable=False),
-        #CheckboxColumn(name="hand_labeled",editable=False)
-    ],
+    [LabelStatusColumn(name="id",editable=False)],
     auto_size  = True,
     show_toolbar = True,
     edit_view="traits_view",
@@ -50,9 +53,16 @@ class BeatTrain(HasTraits):
     bp_matrix = DelegatesTo("physiodata") 
     systolic_matrix = DelegatesTo("physiodata")
     diastolic_matrix = DelegatesTo("physiodata")
+    doppler_matrix = DelegatesTo("physiodata")
     censored_intervals = DelegatesTo("physiodata")
     use_trimmed_co = DelegatesTo("physiodata")
     censored_secs_before = DelegatesTo("physiodata")
+    b_order_plots = Button(label="Change Editor Layout")
+    
+    available_widgets = DelegatesTo("physiodata", editor=SetEditor(
+        ordered=True,
+        left_column_title='Available Panels',
+        right_column_title='Displayed Panels'))
 
     # Physio measures derived by self.beats
     lvet = DelegatesTo("physiodata")
@@ -97,7 +107,7 @@ class BeatTrain(HasTraits):
             self.calculate_outliers()  
         # Initialize the heartrate
         self.get_heartrate()
-    
+            
     def _get_global_ensemble_average(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
@@ -414,6 +424,7 @@ class BeatTrain(HasTraits):
                 Item("beats", editor=beat_table, show_label=False)
                 ),
             VGroup(
+                Item("b_order_plots"),
                 Item("outlier_plot",editor=ComponentEditor(), width=400, height=400),
                 Item("plot_contents"),
                 Item("parameter_plot",editor=ComponentEditor(), width=400, height=400),
@@ -425,6 +436,21 @@ class BeatTrain(HasTraits):
         win_title = "Beat Train"
         )
     
+    panel_order_view = MEAPView(
+        HGroup(
+            Item("available_widgets",editor=SetEditor(
+                    ordered=True,
+                    name="available_widgets",
+                    left_column_title='Available Panels',
+                    right_column_title='Displayed Panels')),
+            show_labels=False
+        ),
+        win_title = "Order Panels"
+    )
+    
+    def _b_order_plots_fired(self):
+        self.edit_traits(view="panel_order_view")
+        
 class MEABeatTrain(BeatTrain):
     # stacks of waveforms
     z0_matrix = DelegatesTo("physiodata", "mea_z0_matrix")

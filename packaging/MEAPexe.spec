@@ -5,7 +5,7 @@ from deps2 import imports
 
 block_cipher = None
 a = Analysis(['..\\MEAPapp.py'],
-             pathex=['C:\\Users\\Conda\\MEAP'],
+             pathex=['C:\\Users\\mattc\\projects\\MEAP'],
              binaries=[],
              datas=[],
              hiddenimports=imports,
@@ -19,9 +19,9 @@ a = Analysis(['..\\MEAPapp.py'],
              
 a.datas += [
           ('resources\\meap.png',
-          'C:\\Users\\Conda\\MEAP\\meap\\resources\\meap.png','DATA'),
+          'C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\meap.png','DATA'),
           ('resources\\logo512x512.png',
-          'C:\\Users\\Conda\\MEAP\\meap\\resources\\logo512x512.png','DATA')
+          'C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\logo512x512.png','DATA')
 ]
 
 pyz = PYZ(a.pure, a.zipped_data,
@@ -40,7 +40,7 @@ exe = EXE(pyz,
           strip=None,
           upx=True,
           console=True,
-          icon="C:\\Users\\Conda\\MEAP\\meap\\resources\\meap.ico" )
+          icon="C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\meap.ico" )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

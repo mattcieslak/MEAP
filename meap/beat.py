@@ -7,11 +7,11 @@ from meap.filters import smooth, normalize, template_to_target_dtw, dtw_mapping
 from meap import BLOOD_RESISTIVITY, MEAPView, ENSEMBLE_SIGNALS,colors
 from meap.timeseries import TimePoint
 from meap.io import PhysioData
-from meap.point_marker2 import PointDraggingTool, BTool, BMarker
+from meap.point_marker2 import PointDraggingTool, DBTool, BTool, BMarker
 from pyface.api import ProgressDialog
 import numpy as np
 from traitsui.api import ( Item, VGroup, HGroup, Group,
-     TableEditor, HSplit, ObjectColumn )
+     TableEditor, HSplit, ObjectColumn, SetEditor )
 from traitsui.menu import OKButton, CancelButton
 
 from chaco.api import Plot, ArrayPlotData, HPlotContainer, VPlotContainer
@@ -31,8 +31,9 @@ class TimepointColumn(ObjectColumn):
 plt_offsets = {
         "ecg": 0.0,
         "dzdt":1.1,
-        "sbp":2.2,
-        "dbp":2.2,
+        "doppler": 1.1,
+        "systolic":2.2,
+        "diastolic":2.2,
         "bp":2.2,
         "z0":3.3
         }
@@ -40,8 +41,9 @@ plt_offsets = {
 plt_scalars = {
         "ecg": 1.,
         "dzdt":1,
-        "sbp":0.5,
-        "dbp":0.5,
+        "doppler":1.,
+        "systolic":0.5,
+        "diastolic":0.5,
         "bp":0.5,
         "z0":0.5
         }
@@ -75,6 +77,8 @@ class HeartBeat(HasTraits):
     systolic_time  = Array
     diastolic_signal  = Array
     diastolic_time  = Array
+    doppler_signal = Array
+    doppler_time = Array
     base_impedance = Property(Float)
     dZdt_max = Property(Float)
     resp_corrected_base_impedance = Property(Float)
@@ -106,6 +110,12 @@ class HeartBeat(HasTraits):
     systole_label = Instance(DataLabel,transient=True)
     diastole = Instance(TimePoint)
     diastole_label = Instance(DataLabel,transient=True)
+    # Doppler
+    db = Instance(TimePoint)
+    db_label = Instance(DataLabel,transient=True)
+    dx = Instance(TimePoint)
+    dx_label = Instance(DataLabel,transient=True)
+    
     usable = CBool(True)
     moving_ensembled = CBool(False)
     
@@ -138,6 +148,11 @@ class HeartBeat(HasTraits):
     dzdt_component = Instance(Component,transient=True)
     dzdt_point_picker = Instance(PointDraggingTool,transient=True)
 
+    # Doppler plot items
+    doppler_plotdata = Instance( ArrayPlotData, transient=True)
+    doppler_plot = Instance(HPlotContainer,transient=True)
+    doppler_component = Instance(Component,transient=True)
+    doppler_point_picker = Instance(PointDraggingTool,transient=True)
 
     # Point classifier params
     apply_ecg_smoothing = Bool(True)
@@ -158,8 +173,22 @@ class HeartBeat(HasTraits):
     # Traits from ICG editor
     btool_t = Float(0.)
     btool_t_selection = Float(0.)
-
-
+    
+    # Traits from ICG editor
+    dbtool_t = Float(0.)
+    dbtool_t_selection = Float(0.)
+    dxtool_t = Float(0.)
+    dxtool_t_selection = Float(0.)
+    
+    # Traits from doppler editor
+    dbtool_t = Float(0.)
+    dbtool_t_selection = Float(0.)
+    dxtool_t = Float(0.)
+    dxtool_t_selection = Float(0.)
+    
+    available_widgets = DelegatesTo("physiodata")
+    
+    
     def __init__(self,**traits):
         super(HeartBeat,self).__init__(**traits)
         """
@@ -177,6 +206,7 @@ class HeartBeat(HasTraits):
         self._set_default_times()
         self._set_points()
 
+    
     def _set_default_signals(self):
         if self.id < 0: return
         mat_prefix= "mea_" if self.moving_ensembled else ""
@@ -190,6 +220,13 @@ class HeartBeat(HasTraits):
                 else:
                     setattr(self, signal + "_signal", 
                         getattr(self.physiodata,mat_prefix + signal+"_matrix")[self.id])
+                if signal == "doppler":
+                    self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                    self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+                if signal == "dzdt":
+                    self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
+                    self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
+                    
 
     def _set_default_times(self):
         # Set the default times to be consistent with physiodata
@@ -202,7 +239,7 @@ class HeartBeat(HasTraits):
                     ("z0","resp_corrected_z0","resp_corrected_dzdt") else "dzdt" 
             pre_msec = getattr(self.physiodata, _signal + "_pre_peak")
             sig = getattr(self, _signal + "_signal")
-            setattr(self, signal + "_time", np.arange(sig.shape[0])-pre_msec)
+            setattr(self, signal + "_time", np.arange(sig.shape[0], dtype=np.float)-pre_msec)
 
     def _set_points(self):
         # Create points from each signal
@@ -210,7 +247,7 @@ class HeartBeat(HasTraits):
         for pname, pobj in pts.iteritems():
             setattr(self,pname,pobj)
         points = []
-        for p in ["p","q","r","s","t","c","x","o","systole","diastole","b"]:
+        for p in ["p","q","r","s","t","c","x","o","systole","diastole","b","db","dx"]:
             pobj =  getattr(self,p)
             if pobj is not None:
                 points.append(pobj) 
@@ -240,16 +277,20 @@ class HeartBeat(HasTraits):
                   name="systole", applies_to="bp",point_type="max",beat=self)
             points["diastole"] = TimePoint(
                   name="diastole", applies_to="bp",point_type="min",beat=self)
-        if "sbp" in self.physiodata.contents and "dbp" in self.physiodata.contents:
+        if "systolic" in self.physiodata.contents and "diastolic" in self.physiodata.contents:
             points["systole"] = TimePoint(name="systole", 
                   applies_to="systolic", point_type="average",beat=self)
             points["diastole"] = TimePoint(name="diastole", 
                   applies_to="diastolic", point_type="average",beat=self)
+        if "doppler" in self.physiodata.contents:
+            points.update({
+             "db": TimePoint(name="db", applies_to="doppler", point_type=self.physiodata.db_point_type, beat=self),
+             "dx": TimePoint(name="dx", applies_to="doppler", point_type=self.physiodata.dx_point_type, beat=self)})
         return points
 
     def update_plot(self):
         if self.plotdata is None: return
-        for signal in ("dzdt", "ecg", "z0"):
+        for signal in ("dzdt", "ecg", "z0", "doppler"):
             if not signal in self.physiodata.contents: continue
             scalar,offset = plt_scalars[signal], plt_offsets[signal]
             setattr(self, "plt_" + signal, 
@@ -289,6 +330,7 @@ class HeartBeat(HasTraits):
         # Make an initial guess for the points
         elif self.marking_strategy == "heuristic":
             logger.warn("Using heuristics to mark points")
+            print "test"
             self.heuristic_mark_ecg_points()
             self.heuristic_mark_dzdt_points()
             self.heuristic_mark_bp_points()
@@ -588,11 +630,6 @@ class HeartBeat(HasTraits):
         # Triggers listener on beat_train 
         self.point_updated = True
 
-    def _dzdt_signal_changed(self):
-        # recompute the dzdt tangent for plotting
-        self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
-        self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
-    
     def _btool_t_selection_changed(self):
         logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
         self.b.set_time(self.btool_t_selection)
@@ -613,15 +650,35 @@ class HeartBeat(HasTraits):
         Instead of defining these in __init__, only
         construct the plots when a ui is requested
         """
-        #self._dzdt_signal_changed()
         _time = ArrayDataSource(self.dzdt_time,sort_order="ascending")
-        self.dzdt_plotdata = ArrayPlotData(time = _time, 
-                                           dzdt_signal = self.dzdt_signal,
-                                           ddzdt_signal = self.ddzdt_signal,
-                                           dddzdt_signal = self.dddzdt_signal
-                                         )
+        signals = {
+                   "dzdt_signal": self.dzdt_signal,
+                   "ddzdt_signal": self.ddzdt_signal,
+                   "dddzdt_signal": self.dddzdt_signal
+        }
+        
+        # Gather the doppler signals
+        plot_doppler = "doppler" in self.physiodata.contents
+        def quick_norm(signal,ref_signal):
+            sig = normalize(signal)
+            sig = sig * (ref_signal.max() - ref_signal.min()) + ref_signal.min()
+            return sig
+        if plot_doppler:
+            plt_doppler_signal = quick_norm(self.doppler_signal, self.dzdt_signal)
+            plt_ddoppler_signal = quick_norm(self.ddoppler_signal, self.ddzdt_signal)
+            plt_dddoppler_signal = quick_norm(self.dddoppler_signal, self.dddzdt_signal)
+            signals.update({
+                   "doppler_signal": plt_doppler_signal,
+                   "ddoppler_signal": plt_ddoppler_signal,
+                   "dddoppler_signal": plt_dddoppler_signal
+            })
+        self.dzdt_plotdata = ArrayPlotData(time = _time, **signals)
+        
         # Create the plots and tools/overlays
         main_plot = Plot(self.dzdt_plotdata,title="dZ/dt: R to C",padding=20)
+        if plot_doppler:
+            main_plot_doppler = main_plot.plot(("time","doppler_signal"), line_width=3, 
+                color=colors['doppler'])[0]
         main_plot_line = main_plot.plot(("time","dzdt_signal"), line_width=3, 
                 color=colors['dzdt'])[0]
         main_plot_btool = BTool(line_plot=main_plot_line, component=main_plot)
@@ -634,6 +691,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", main_plot_bmarker)
 
         submain_plot = Plot(self.dzdt_plotdata,title="dZ/dt: Full Signal",padding=20)
+        if plot_doppler:
+            submain_plot_doppler = submain_plot.plot(("time","doppler_signal"), line_width=3, 
+                color=colors['doppler'])[0]
         submain_plot_line = submain_plot.plot(("time","dzdt_signal"), line_width=3, 
                 color=colors['dzdt'])[0]
         submain_plot_btool = BTool(line_plot=submain_plot_line, component=submain_plot)
@@ -648,6 +708,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", submain_plot_bmarker)
         
         d1_plot = Plot(self.dzdt_plotdata,title="First Derivative",padding=20)
+        if plot_doppler:
+            d1_plot_doppler = d1_plot.plot(("time","ddoppler_signal"),line_width=3,
+                    color=colors['doppler'])[0]
         d1_plot_line = d1_plot.plot(("time","ddzdt_signal"),line_width=3,
                 color=colors['dzdt'])[0]
         d1_plot_btool = BTool(line_plot=d1_plot_line, component=d1_plot)
@@ -660,6 +723,9 @@ class HeartBeat(HasTraits):
         self.b.sync_trait("time", d1_plot_bmarker)
 
         d2_plot = Plot(self.dzdt_plotdata,title="Second Derivative",padding=20)
+        if plot_doppler:
+            d2_plot_line = d2_plot.plot(("time","dddoppler_signal"),line_width=3,
+                    color=colors['doppler'])[0]
         d2_plot_line = d2_plot.plot(("time","dddzdt_signal"),line_width=3,
                 color=colors['dzdt'])[0]
         d2_plot_btool = BTool(line_plot=d2_plot_line, component=d2_plot)
@@ -685,6 +751,76 @@ class HeartBeat(HasTraits):
         vcon_right.add(submain_plot, d1_plot, d2_plot)
         container = HPlotContainer(vcon_left, vcon_right)
         return container
+    
+    def _dbtool_t_selection_changed(self):
+        logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
+        self.db.set_time(self.dbtool_t_selection)
+        if self.plotdata is not None:
+            self.plotdata.set_data('point_values', self._get_plt_point_values())
+            self.plotdata.set_data('point_times', self._get_point_times())
+            self.physiodata.hand_labeled[self.id] = 1
+            self.plot.request_redraw()
+            self.point_updated=True
+            
+    def _dxtool_t_selection_changed(self):
+        logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
+        self.dx.set_time(self.dxtool_t_selection)
+        if self.plotdata is not None:
+            self.plotdata.set_data('point_values', self._get_plt_point_values())
+            self.plotdata.set_data('point_times', self._get_point_times())
+            self.physiodata.hand_labeled[self.id] = 1
+            self.plot.request_redraw()
+            self.point_updated=True
+
+    def _doppler_plot_default(self):
+        _time = ArrayDataSource(self.dzdt_time,sort_order="ascending")
+        signals = {
+                    "time":_time,
+                    "doppler_signal": self.doppler_signal,
+        }
+        plot_dzdt = "dzdt" in self.physiodata.contents
+        def quick_norm(signal,ref_signal):
+            sig = normalize(signal)
+            sig = sig * (ref_signal.max() - ref_signal.min()) + ref_signal.min()
+            return sig
+        if plot_dzdt:
+            signals["dzdt_signal"] = quick_norm(
+                                self.doppler_signal, self.dzdt_signal)
+        
+        self.doppler_plotdata = ArrayPlotData(**signals)
+        
+        # Create the plots and tools/overlays
+        main_plot = Plot(self.doppler_plotdata,title="CW Doppler", padding=20)
+        if plot_dzdt:
+            main_plot_doppler = main_plot.plot(("time","dzdt_signal"), line_width=3, 
+                color=colors['dzdt'])[0]
+        main_plot_line = main_plot.plot(("time","doppler_signal"), line_width=3, 
+                color=colors['doppler'])[0]
+        
+        # Tools for the db point
+        main_plot_dbtool = DBTool(line_plot=main_plot_line, 
+                                  component=main_plot)
+        main_plot.overlays.append(main_plot_dbtool)
+        main_plot_dbtool.sync_trait("time",self, "dbtool_t")
+        main_plot_dbtool.sync_trait("selected_time",self, 
+                                    "dbtool_t_selection")
+        main_plot_dbmarker = BMarker(line_plot=main_plot_line, component=main_plot, 
+                selected_time=self.db.time,line_style='dash',color='maroon')
+        main_plot.overlays.append(main_plot_dbmarker)
+        
+        # Tools for the dx point
+        main_plot_dbtool.sync_trait("time",self, "dxtool_t")
+        main_plot_dbtool.sync_trait("x_selected_time",self, 
+                                    "dxtool_t_selection")
+        main_plot_dxmarker = BMarker(line_plot=main_plot_line, component=main_plot, 
+                                    selected_time=self.dx.time,line_style='dash',color='darkblue')
+        main_plot.overlays.append(main_plot_dxmarker)
+
+        # Create container
+        vcon_left = HPlotContainer()
+        vcon_left.add(main_plot)
+        return vcon_left
+    
 
     def _get_plt_point_values(self):
         # Configure the timepoints we'll be plotting
@@ -773,19 +909,54 @@ class HeartBeat(HasTraits):
         plot.padding =12
         return plot
 
-    traits_view = MEAPView(
-        HSplit(
-            Group(
-            Item("dzdt_plot",editor=ComponentEditor(),label="ICG Editor"),
-            VGroup(
-            Item("plot",editor=ComponentEditor(),show_label=False),
-            Item("usable"), label="All Signals",show_left=False,springy=True),            
-            show_labels=False,
-            layout="tabbed")),
+    def default_traits_view(self):
+        """
+        Creates a custom traits view for this heartbeat depending
+        on what data is available in the physiodata.
+        """
+        panels = []
+        for widget in self.available_widgets:
+            if widget == "ICG B Point":
+                panels.append(
+                    Item("dzdt_plot",editor=ComponentEditor(),label="ICG B Point"))
+                
+            elif widget == "Annotation":
+                panels.append(
+                    VGroup(
+                        Item("plot",editor=ComponentEditor(),show_label=False),
+                        Item("usable"),
+                        show_left=False, springy=True, 
+                        label="Annotation"))
+            
+            elif widget == "Doppler":
+                panels.append(
+                    Item("doppler_plot",editor=ComponentEditor(),label="Doppler"))
+    
+        return MEAPView(
+            HSplit(
+                Group(*panels,show_labels=False,layout="tabbed"),
+                ),
             width=800, height=500, resizable=True,
-            win_title="Fix Point Marking"
+            win_title="Heart Beat Editor"
             )
-
+    
+    # Changes the order of the data editors
+    panel_order_view = MEAPView(
+        Group(
+            Item("available_widgets",editor=SetEditor(
+                    ordered=True,
+                    name="available_widgets",
+                    left_column_title='Available Panels',
+                    right_column_title='Displayed Panels')),
+            show_labels=False
+        ),
+        win_title = "Order Panels"
+    )
+    def _b_change_panel_order_fired(self):
+        self.edit_traits(view="panel_order_view")
+        
+    
+    
 TimePoint.add_class_trait("beat",Instance(HeartBeat))
 PointDraggingTool.add_class_trait("beat",Instance(HeartBeat))
     
@@ -824,6 +995,12 @@ class EnsembleAveragedHeartBeat(HeartBeat):
                 self.ecg_signal = sig
             else:
                 setattr(self, signal + "_signal", sig)
+            if signal == "doppler":
+                self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+            if signal == "dzdt":
+                self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
+                self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
         
 class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
     marking_strategy = "heuristic"

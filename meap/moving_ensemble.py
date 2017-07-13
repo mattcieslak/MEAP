@@ -544,6 +544,6 @@ class MovingEnsembler(HasTraits):
             Item("b_save",show_label=False),
             Item("b_train",show_label=False),
             Item("b_test_performance", show_label=False)),
-        VGroup(Item("selected_beats",style="custom",show_label=False))),
+        HGroup(Item("selected_beats",style="custom",show_label=False))),
         resizable=True
     )
