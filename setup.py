@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+from meap import __version__
 
 setup(
       name="MEAP",
-      version="1.1.0",
+      version=__version__,
       description="A program for analyzing acqknowledge files",
       author="Matt Cieslak and Will Ryan",
       author_email="matthew.cieslak@psych.ucsb.edu",

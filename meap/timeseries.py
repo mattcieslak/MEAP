@@ -1,6 +1,6 @@
 from traits.api import (HasTraits, Str, Array, Float,
           Bool, Enum, Instance, on_trait_change,Property,
-          Button, List, CInt)
+          Button, List, CInt, CFloat)
 from traitsui.api import (VGroup, HGroup, Item, HSplit, 
                           TableEditor,ObjectColumn)
 from traitsui.menu import OKButton, CancelButton
@@ -127,8 +127,8 @@ censor_table = TableEditor(
 
 class TimePoint(HasTraits):
     name = Str
-    time = Float
-    value = Float
+    time = CFloat
+    value = CFloat
     index = CInt
     #beat = Instance(meap.beat.HeartBeat)
     applies_to = Enum("ecg","dzdt","bp","systolic","diastolic","doppler")

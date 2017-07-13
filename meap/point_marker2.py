@@ -4,7 +4,7 @@ import numpy as np
 # Enthought library imports
 from enable.tools.api import DragTool
 from traits.api import ( Instance, Int, Tuple, Event,
-      Any,  Array, Enum, Float, CInt,Str)
+      Any,  Array, Enum, Float, CInt, CFloat, Str)
 # Chaco imports
 from chaco.overlays.coordinate_line_overlay import CoordinateLineOverlay
 from chaco.api import BaseTool    
@@ -156,8 +156,8 @@ class BTool(BaseTool, CoordinateLineOverlay):
     line_plot = Any()
 
     # Time trait that can be set externally
-    time = Float()
-    selected_time = Float()
+    time = CFloat()
+    selected_time = CFloat()
     
     # Whether to draw the overlay
     visible=True
@@ -202,7 +202,7 @@ class BTool(BaseTool, CoordinateLineOverlay):
             self._draw_vertical_line(gc,t)
 
 class DBTool(BTool):
-    x_selected_time = Float()
+    x_selected_time = CFloat()
     def normal_left_down(self,event):
         # This will trigger the listener on self.beat.
         self.x_selected_time = self.time
@@ -214,7 +214,7 @@ class BMarker(CoordinateLineOverlay):
     """
     Static marker for the b-point
     """
-    time = Float()
+    time = CFloat()
     
     # Whether to draw the overlay
     visible=True

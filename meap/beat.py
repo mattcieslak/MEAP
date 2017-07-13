@@ -329,6 +329,7 @@ class HeartBeat(HasTraits):
         # Make an initial guess for the points
         elif self.marking_strategy == "heuristic":
             logger.warn("Using heuristics to mark points")
+            print "test"
             self.heuristic_mark_ecg_points()
             self.heuristic_mark_dzdt_points()
             self.heuristic_mark_bp_points()

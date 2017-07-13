@@ -22,11 +22,11 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={pf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-LicenseFile=C:\Users\Conda\MEAP\LICENSE.txt
-InfoBeforeFile=C:\Users\Conda\MEAP\COPYING.txt
-OutputDir=C:\Users\Conda\MEAP\innosetup
-OutputBaseFilename=setup
-SetupIconFile=C:\Users\Conda\MEAP\meap\resources\meap.ico
+LicenseFile=C:\Users\mattc\projects\MEAP\LICENSE.txt
+InfoBeforeFile=C:\Users\mattc\projects\MEAP\COPYING.txt
+OutputDir=C:\Users\mattc\projects\MEAP\innosetup
+OutputBaseFilename=MEAPsetup
+SetupIconFile=C:\Users\mattc\projects\MEAP\meap\resources\meap.ico
 Compression=lzma
 SolidCompression=yes
 
@@ -37,8 +37,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "C:\Users\Conda\MEAP\packaging\dist\MEAP\MEAP.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\Conda\MEAP\packaging\dist\MEAP\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\mattc\projects\MEAP\packaging\dist\MEAP\MEAP.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\mattc\projects\MEAP\packaging\dist\MEAP\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

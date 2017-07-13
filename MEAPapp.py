@@ -13,7 +13,7 @@ from enable.component_editor import ComponentEditor
 from chaco.tools.api import PanTool, ZoomTool
 from pyface.image_resource import ImageResource
 from pyface.api import SplashScreen
-from meap import meap_splash
+from meap import meap_splash, __version__
 
 
 class MEAPGreeter(HasTraits):
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     print "Welcome to MEAP!"
     print "================"
     print ""
+    print "Version:", __version__
     print "Please keep this window open. In case MEAP crashes, email"
     print "Matt the error message printed here and explain what you"
     print "were doing when it crashed. Please consider joining the"
