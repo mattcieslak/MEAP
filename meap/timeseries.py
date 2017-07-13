@@ -130,7 +130,6 @@ class TimePoint(HasTraits):
     time = Float
     value = Float
     index = CInt
-    #beat = Instance(meap.beat.HeartBeat)
     applies_to = Enum("ecg","dzdt","bp","systolic","diastolic")
     point_type = Enum("max", "min", "inflection",
                     "average","geom_trick","classifier")
@@ -140,15 +139,19 @@ class TimePoint(HasTraits):
     def __init__(self,**traits):
         super(TimePoint,self).__init__(**traits)
         self.physiodata = self.beat.physiodata
+        self.index_array = getattr(self.physiodata, self.name+"_indices", None)
+        
         # For fast time-to-index conversion
         if self.applies_to in ("systolic", "diastolic", "bp"):
             self.offset = self.physiodata.bp_pre_peak
         else:
             self.offset = getattr(self.physiodata,self.applies_to + "_pre_peak")
+        
+        # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
-            self.set_index(getattr(self.physiodata,self.name + "_indices")[self.beat.id])
-            self.on_trait_change(self.update_physiodata,"index")
+            self.set_index(getattr(self.physiodata, self.name + "_indices")[self.beat.id])
             
+          
     def mark_similar(self,unmarked_beat, smoothing_window_len=21,search_window=SEARCH_WINDOW):
         """
         Extracts a time point specific to ``unmarked_beat`` that  
@@ -201,34 +204,34 @@ class TimePoint(HasTraits):
 
         # Check that we aren't hitting an edge of the search reg
         if t_ind in (window_min_idx,window_max_idx):
-            bnum = self.beat.id if self.beat.id is not None else -1
+            bnum = unmarked_beat.id if unmarked_beat.id is not None else -1
             logger.warn("[%d] %s point detected at edge of search region", 
                         bnum, self.name)
             unmarked_point.needs_attention = True
         unmarked_point.set_index(t_ind)
+        index_array = getattr(unmarked_beat.physiodata, self.name + "_indices")
+        #assert index_array[unmarked_beat.id] == t_ind
+        return True
     
     def set_time(self,time):
         """
         If all we have is a time, adjust the index and value to match
         """
-        ts = getattr(self.beat, self.applies_to+"_signal")
-        #closest_index = (np.abs(ts_time-time)).argmin()
         self.time = time
-        self.index = int(time) + self.offset
-        self.value = ts[self.index]
+        self.set_index(int(time) + self.offset)
     
     def set_index(self,index):
         """
         If all we have is a time, adjust the index and value to match
         """
         ts = getattr(self.beat, self.applies_to+"_signal")
-        #ts_time = getattr(beat, self.applies_to+"_time")
         self.time = float(index) - self.offset
         self.index = index
         self.value = ts[index]
+        if self.index_array is not None and self.beat.id > -1:
+            index_array = getattr(self.physiodata, self.name + "_indices")
+            index_array[self.beat.id] = self.index
         
-    def update_physiodata(self):
-        getattr(self.physiodata,self.name+"_indices")[self.beat.id] = self.index
         
 
 class TimeSeries(HasTraits):

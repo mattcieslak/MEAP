@@ -210,6 +210,16 @@ class MovingEnsembler(HasTraits):
         n_beats = len(peak_times)
         n_beats_averaged = np.zeros(n_beats)
         self.physiodata.mea_hr = np.zeros(n_beats)
+        
+        # If the window secs is set to 0 use the 
+        if window_secs == 0.:
+            # Apply the moving ensemble weighting
+            for signal in self.physiodata.contents:
+                setattr(self.physiodata, "mea_%s_matrix" % signal,
+                    getattr(self.physiodata,"%s_matrix" % signal).copy())
+            self.physiodata.mea_hr = raw_hr
+            logger.info("Using raw beats instead of moving ensembling")
+            return
 
         for beatnum in range(n_beats):
             beat_time = peak_times[beatnum]
@@ -329,9 +339,6 @@ class MovingEnsembler(HasTraits):
         return BPointClassifier(physiodata=self.physiodata)
 
     def _b_apply_clf_fired(self):
-        if self.physiodata.hand_labeled.sum() == 0:
-            messagebox("You have to handlabel some heartbeats first")
-            return
         if not self.bpoint_classifier.trained:
             messagebox("Classifier is not trained yet!")
             return

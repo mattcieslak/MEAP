@@ -422,13 +422,9 @@ class ExpEvent(HasTraits):
         # attach the results
         self.ea_hrv = self.get_hrv()
         
-        # TODO: insert bpoint classifier here
-        # It should also go in the datadict
-        try:
-            self.ensemble_averaged_heartbeat.mark_points(
-                waveform_prior=self.parent.global_ensemble)
-        except Exception, e:
-            logger.warn(e)
+        self.ensemble_averaged_heartbeat.mark_points(
+            waveform_prior=self.parent.global_ensemble)
+            
         if self.hand_labeled:
             for point, point_time in self.custom_times.iteritems():
                 try:
@@ -927,7 +923,7 @@ class PhysioExperiment(HasTraits):
         if self.selected_event.event_id == actual_id:
             logger.info("Selected already-editing event")
             return
-        self.selected_event = self.events[actual_id]
+        #self.selected_event = self.events[actual_id]
 
         
     def _outlier_plot_default(self):
