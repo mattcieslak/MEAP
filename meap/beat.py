@@ -914,22 +914,21 @@ class HeartBeat(HasTraits):
         """
         panels = []
         for widget in self.available_widgets:
-            if widget == "Annotation":
+            if widget == "ICG B Point":
+                panels.append(
+                    Item("dzdt_plot",editor=ComponentEditor(),label="ICG B Point"))
+                
+            elif widget == "Annotation":
                 panels.append(
                     VGroup(
                         Item("plot",editor=ComponentEditor(),show_label=False),
                         Item("usable"),
                         show_left=False, springy=True, 
                         label="Annotation"))
-                
-            elif widget == "ICG B Point":
-                panels.append(
-                    Item("dzdt_plot",editor=ComponentEditor(),label="ICG B Point"))
             
             elif widget == "Doppler":
                 panels.append(
                     Item("doppler_plot",editor=ComponentEditor(),label="Doppler"))
-        
     
         return MEAPView(
             HSplit(
