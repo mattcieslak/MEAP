@@ -150,7 +150,10 @@ class TimePoint(HasTraits):
         
         # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
-            self.set_index(getattr(self.physiodata, self.name + "_indices")[self.beat.id])
+            try:
+                self.set_index(getattr(self.physiodata, self.name + "_indices")[self.beat.id])
+            except Exception, e:
+                logger.warn("Error setting %s:\n%s",self.name, e)
             
           
     def mark_similar(self,unmarked_beat, smoothing_window_len=21,search_window=SEARCH_WINDOW):
