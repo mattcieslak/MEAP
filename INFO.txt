@@ -1,4 +1,4 @@
-MEAP version 1.1.0
+MEAP version 1.2.1
 
     Copyright (C) 2014 Matthew Cieslak and Will Ryan
 
