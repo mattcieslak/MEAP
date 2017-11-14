@@ -10,13 +10,16 @@ Installers
 -----------
 
 To download a MEAP installer for Windows or Mac OS, please visit the
-"Releases" link above. 
+[Releases](https://github.com/mattcieslak/MEAP/releases) page.
 
 Documentation
 --------------
 
 Step-by-step instructions are available [here](http://meap.readthedocs.io/en/latest/)
 
+
+Reference
+----------
 
 If you find MEAP useful please cite 
 
