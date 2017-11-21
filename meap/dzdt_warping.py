@@ -4,10 +4,10 @@ from traits.api import (HasTraits,  Array,  File, cached_property,
           DelegatesTo, Int, Button, List, Set, Float )
 import os
 # Needed for Tabular adapter
-from traitsui.api import Item,HGroup,VGroup, VSplit
+from traitsui.api import Item,HGroup,VGroup, HSplit
 from traitsui.menu import OKButton, CancelButton
 from enable.component_editor import ComponentEditor
-from chaco.api import Plot, ArrayPlotData, VPlotContainer,jet
+from chaco.api import (Plot, ArrayPlotData, HPlotContainer,jet)
 import numpy as np
 eps = np.finfo(np.float64).eps
 from pyface.api import ProgressDialog
@@ -52,6 +52,7 @@ class GroupRegisterDZDT(HasTraits):
     srvf_iteration_distances = DelegatesTo("physiodata")
     srvf_iteration_energy = DelegatesTo("physiodata")
     karcher_mean_calculated = Bool(False)
+    all_beats_registered = Bool(False)
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
 
@@ -62,6 +63,7 @@ class GroupRegisterDZDT(HasTraits):
     xtool_t_selection = Float(0.)
     # graphics items
     karcher_plot = Instance(Plot, transient=True)
+    registration_plot = Instance(HPlotContainer, transient=True)
     karcher_plotdata = Instance(ArrayPlotData, transient=True)
     currently_editing = Enum("b", "x")
     t_offset = Float()
@@ -105,8 +107,14 @@ class GroupRegisterDZDT(HasTraits):
                 for func in self.original_functions]
             )
 
+        self._init_warps()
+
         self.select_new_samples()
 
+    def _init_warps(self):
+        if self.dzdt_warping_functions.shape[0] == \
+                                self.original_functions.shape[0]:
+            self.all_beats_registered = True
 
     def _global_ensemble_default(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
@@ -138,12 +146,69 @@ class GroupRegisterDZDT(HasTraits):
         karcher_plot.title = "Means"
         return karcher_plot
 
+    def _registration_plot_default(self):
+        """
+        Instead of defining these in __init__, only
+        construct the plots when a ui is requested
+        """
+        unreg_mean = self.global_ensemble.dzdt_signal
+        # Temporarily fill in the karcher mean
+        if not self.karcher_mean_calculated:
+            karcher_mean = unreg_mean[self.srvf_t_min:self.srvf_t_max]
+        else:
+            karcher_mean = self.dzdt_karcher_mean
+
+        self.single_registration_plotdata = ArrayPlotData(
+            karcher_time = self.karcher_mean_time,
+            karcher_mean = karcher_mean,
+            registered_func = karcher_mean
+        )
+
+        self.single_plot = Plot(self.single_registration_plotdata)
+        self.single_plot.plot(("karcher_time","karcher_mean"),
+                    line_width=2,color="blue")
+        self.single_plot.plot(("karcher_time","registered_func"),
+                    line_width=2,color="maroon")
+
+
+        if self.all_beats_registered:
+            self._forward_warp_beats()
+            image_data = self.registered_functions
+        else:
+            image_data = self.original_functions
+
+        # Create a plot of all the functions registered or not
+        self.all_registration_plotdata = ArrayPlotData(
+            image_data = image_data
+        )
+        self.all_plot = Plot(self.all_registration_plotdata)
+        self.all_plot.img_plot("image_data", colormap = jet)
+
+        return HPlotContainer(self.single_plot, self.all_plot)
+
+
+    def _forward_warp_beats(self):
+        """ Create registered beats to plot, since they're not stored """
+        pass
+        logger.info("Applying warps to functions for plotting")
+        # Re-create gam
+        gam = self.dzdt_warping_functions - self.srvf_t_min
+        gam = gam / (self.srvf_t_max - self.srvf_t_min)
+
+        aligned_functions = np.zeros_like(self.original_functions)
+        t = self.sample_times
+        for k in range(self.n_functions):
+            aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
+                                             t, self.original_functions[k])
+
+        self.registered_functions = aligned_functions
+
+
     @on_trait_change("dzdt_num_inputs_to_group_warping")
     def select_new_samples(self):
         nbeats = self.original_functions.shape[0]
         nsamps = min(self.dzdt_num_inputs_to_group_warping, nbeats)
         self.dzdt_karcher_mean_inputs = np.random.choice(nbeats,size=nsamps,replace=False)
-
 
     @on_trait_change(
        ("physiodata.srvf_lambda, physiodata.srvf_karcher_iterations, "
@@ -210,20 +275,35 @@ class GroupRegisterDZDT(HasTraits):
                                              t, self.original_functions[k])
 
             if self.interactive:
+
+                # Update the image plot
+                img_data = self.all_registration_plotdata.get_data("image_data")
+                img_data[k] = aligned_functions[k]
+                self.all_registration_plotdata.set_data("image_data", img_data)
+
+                # Update the registration plot
+                self.single_registration_plotdata.set_data("registered_func",
+                                                        aligned_functions[k])
+
                 (cont,skip) = progress.update(k)
 
         self.registered_functions = aligned_functions
 
-        if interactive:
+        self.dzdt_warping_functions = gam * (
+                                        self.srvf_t_max - self.srvf_t_min) + \
+                                        self.srvf_t_min
+
+        if self.interactive:
             progress.update(k+1)
 
-    mean_widgets = HGroup(
-        Item("karcher_plot",editor=ComponentEditor(),
+    mean_widgets =VGroup(
+            Item("karcher_plot",editor=ComponentEditor(),
                  show_label=False),
-        VGroup(
+            Item("registration_plot", editor=ComponentEditor(),
+                show_label=False)
             Item("srvf_lambda",label="Lambda Value"),
-            Item("srvf_lambda",label="Lambda Value"),
-            Item("dzdt_num_inputs_to_group_warping",label="Template uses N beats"),
+            Item("dzdt_num_inputs_to_group_warping",
+                    label="Template uses N beats"),
             Item("srvf_max_karcher_iterations", label="Max Iterations"),
             HGroup(
                 Item("b_calculate_karcher_mean", label="Step 1:",
@@ -237,10 +317,10 @@ class GroupRegisterDZDT(HasTraits):
                 Item("b_update_x_point", show_label=False,
                     enabled_when="karcher_mean_calculated")
             )
-        )
     )
+
     traits_view = MEAPView(
-        VSplit(
+        HSplit(
             mean_widgets
         ),
         resizable=True,

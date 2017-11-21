@@ -8,21 +8,21 @@ from traits.api import Str
 from traitsui.message import Message
 
 # Begin a logging output
-logging.basicConfig(format='%(asctime)s %(message)s', 
+logging.basicConfig(format='%(asctime)s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # Chaco spits out lots of deprecation warnings
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-warnings.filterwarnings("ignore", category=FutureWarning) 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 DEFAULT_SAMPLING_RATE=1000
 SEARCH_WINDOW=30 #samples
 BLOOD_RESISTIVITY=135. # Ohms cm
 n_regions=0
-__version__= "1.2.1"
+__version__= "1.3.0"
 
 # Are we bundled?
 if getattr( sys, 'frozen', False ) :
@@ -39,7 +39,7 @@ SUPPORTED_SIGNALS=["ecg", "ecg2", "dzdt", "z0", "bp",
 SMOOTHING_WINDOWS=("hanning", "flat", "hamming", "bartlett", "blackman")
 
 # Use this to keep signal colors consistent across guis
-colors = {"ecg":"green", 
+colors = {"ecg":"green",
           "ecg2":"green",
           "dzdt":"red",
           "resp_corrected_dzdt":"darkred",
@@ -57,9 +57,9 @@ colors = {"ecg":"green",
 
 # Signals which can be ensemble-averaged
 ENSEMBLE_SIGNALS = set((
-    'ecg', 
-    'ecg2', 
-    'z0', 
+    'ecg',
+    'ecg2',
+    'z0',
     "resp_corrected_z0",
     "dzdt",
     "resp_corrected_dzdt",
@@ -82,16 +82,16 @@ class MEAPView(View):
         super(MEAPView,self).__init__(*args, **traits)
         self.title = "MEAP [ v%s ]: "%__version__ + self.win_title
         self.icon = icon
-        
+
 def messagebox(msg,title="Message",buttons=["OK"]):
     m = Message(message=msg)
-    ui = m.edit_traits( 
+    ui = m.edit_traits(
          view = MEAPView(
                         ["message~", "|<>"], title=title,buttons=buttons,kind="modal"
          )
     )
-        
-    
+
+
 
 from traitsui.api import Action
 ParentButton = Action(name="Back",
@@ -103,12 +103,12 @@ def fail(msg,interactive=False):
     logger.critical(msg)
     if interactive:
         messagebox(msg,buttons=["Cancel"],title="Fatal error!")
-    
 
-        
+
+
 
 def print_classes(obj,pad=""):
-    """ 
+    """
     Use this function when having trouble pickling
     a HasTraits object.
     """
@@ -120,38 +120,37 @@ def print_classes(obj,pad=""):
             xx = pickle.dumps(v)
         except TypeError:
             print "failed to pickle", k
-    
+
 
 def outlier_feature_function(contents, is_beat=True):
     attrs_to_get = []
-    
-    # Getting directly from a heartbeat?     
+
+    # Getting directly from a heartbeat?
     if is_beat:
         pre = ""
     else:
         pre = "ensemble_averaged_heartbeat."
-        
+
     if "dzdt" in contents:
         attrs_to_get.extend([pre+"b.time",pre+"x.time"])
     if "ecg" in contents:
         attrs_to_get.append(pre+"r.value")
     if "bp" in contents:
         attrs_to_get.extend([pre+"systole.value",pre+"diastole.value"])
-        
+
     if len(attrs_to_get) == 0:
         return lambda x: 1
-    
+
     return lambda x: np.array(
         [reduce(getattr,attr.split("."),x) for attr in attrs_to_get])
-        
+
 
 def outlier_feature_function_for_physio_experiment(pe):
     """
-    Returns a function that can be applied to ExpEvents, 
+    Returns a function that can be applied to ExpEvents,
     extracting features that can be used for outlier detection
     """
     feature_sets = [pf.physiodata.contents for \
                     pf in pe.physio_files]
     common_features = set.intersection(*feature_sets)
     return outlier_feature_function(common_features,is_beat=False)
-    
