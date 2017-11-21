@@ -1,4 +1,4 @@
-from meap import (fail, __version__, ENSEMBLE_SIGNALS, 
+from meap import (fail, __version__, ENSEMBLE_SIGNALS,
                   SMOOTHING_WINDOWS, messagebox)
 import os
 import tempfile
@@ -76,7 +76,7 @@ class MEAPConfig(HasTraits):
     regress_out_resp = Bool(False)
 
     # parameters for processing the raw data before PT detecting
-    # MRI-specific    
+    # MRI-specific
     subject_in_mri = CBool(False)
     peak_detection_algorithm = Enum("Pan Tomkins 83", "Multisignal", "ECG2")
 
@@ -119,29 +119,6 @@ class MEAPConfig(HasTraits):
     qrs_signal_source = Enum("ecg", "ecg2")
     ecg2_weight = Range(low=0., high=1.,value=0.5)
 
-    # DTWEA parameters
-    dtw_ecg_warping_penalty = CFloat(0.1)
-    dtw_ecg_n_iterations = CInt(5)
-    dtw_ecg_constraint = Enum(("itakura",'slanted_band','sakoe_chiba','None')) 
-    dtw_ecg_metric = Enum(('euclidean', 'sqeuclidean', 'cosine'))
-    dtw_ecg_k = CInt(50)
-    dtw_ecg_used = CBool(False)
-
-    dtw_z0_warping_penalty = CFloat(0.1)
-    dtw_z0_n_iterations = CInt(5)
-    dtw_z0_constraint = Enum(("itakura",'slanted_band','sakoe_chiba','None')) 
-    dtw_z0_metric = Enum(('euclidean', 'sqeuclidean', 'cosine'))
-    dtw_z0_k = CInt(50)
-    dtw_z0_used = CBool(False)
-
-    dtw_dzdt_warping_penalty = CFloat(0.1)
-    dtw_dzdt_n_iterations = CInt(5)
-    dtw_dzdt_constraint = Enum(("itakura",'slanted_band','sakoe_chiba','None')) 
-    dtw_dzdt_metric = Enum(('euclidean', 'sqeuclidean', 'cosine'))
-    dtw_dzdt_k = CInt(50)
-    dtw_dzdt_used = CBool(False)
-
-
     # Moving Ensembling Parameters
     mea_window_type = Enum("Seconds","Beats")
     mea_n_neighbors = Range(low=0, high=60, value=8)
@@ -159,12 +136,24 @@ class MEAPConfig(HasTraits):
     bpoint_classifier_false_distance_min = CInt(5)
     bpoint_classifier_use_bpoint_prior = CBool(True)
     bpoint_classifier_include_derivative = CBool(True)
-    
+
     # Doppler D point config
     db_point_type = Enum("min", "max")
     db_point_window_len = CInt(20)
     dx_point_type = Enum("min", "max")
     dx_point_window_len = CInt(20)
+
+    # SRVF-warping parameters
+    srvf_lambda = CFloat(0.0)
+    srvf_max_karcher_iterations = CInt(15)
+    srvf_update_min = CFloat(0.01)
+    srvf_karcher_mean_subset_size = CInt(30)
+    srvf_multi_mode_variance_cutoff = CFloat(0.3)
+    srvf_use_moving_ensembled = CBool(False)
+    dzdt_num_inputs_to_group_warping = CInt(25)
+    srvf_t_min = CInt(200)
+    srvf_t_max = CInt(900)
+    bspline_before_warping = CBool(True)
 
 
 def load_config(config_path):
@@ -194,7 +183,7 @@ def load_config(config_path):
 
 
 MSEC_PER_SEC=1000.
-def peak_stack(peak_indices, values, pre_msec=300, 
+def peak_stack(peak_indices, values, pre_msec=300,
                post_msec=700, sampling_rate=1000):
     if not len(values): return np.array([])
     arrays = []
@@ -216,7 +205,7 @@ class PhysioData(HasTraits):
     """
     Contains the parameters needed to run a MEAP session
     """
-    
+
     available_widgets = List
     def __init__(self,**traits):
         super(PhysioData,self).__init__(**traits)
@@ -226,14 +215,14 @@ class PhysioData(HasTraits):
         if "doppler" in self.contents:
             available_panels.append("Doppler")
         self.available_widgets = available_panels
-        
+
 
     contents = Property(Set)
     def _get_contents(self):
         """
         Assuming this object is already initialized, this trait
         will check for which data are available. For each signal
-        type if the raw timeseries is available, 
+        type if the raw timeseries is available,
         """
         contents = set()
         for signal in ENSEMBLE_SIGNALS | set(('respiration',)):
@@ -351,33 +340,12 @@ class PhysioData(HasTraits):
     # Contains errors in msec from bpoint cross validation
     bpoint_classifier_cv_error = Array
 
-    # DTWEA parameters
-    dtw_ecg_warping_penalty = PrototypedFrom('config')
-    dtw_ecg_n_iterations = PrototypedFrom('config')
-    dtw_ecg_constraint = PrototypedFrom('config')
-    dtw_ecg_metric = PrototypedFrom('config')
-    dtw_ecg_k = PrototypedFrom('config')
-    dtw_ecg_used = PrototypedFrom('config')
-
-    dtw_z0_warping_penalty = PrototypedFrom('config')
-    dtw_z0_n_iterations = PrototypedFrom('config')
-    dtw_z0_constraint = PrototypedFrom('config')
-    dtw_z0_metric = PrototypedFrom('config')
-    dtw_z0_k = PrototypedFrom('config')
-    dtw_z0_used = PrototypedFrom('config')
-
-    dtw_dzdt_warping_penalty = PrototypedFrom('config')
-    dtw_dzdt_n_iterations = PrototypedFrom('config')
-    dtw_dzdt_constraint = PrototypedFrom('config')
-    dtw_dzdt_metric = PrototypedFrom('config')
-    dtw_dzdt_k = PrototypedFrom('config')
-    dtw_dzdt_used = PrototypedFrom('config')
-    
+    # Points on doppler signal
     dx_point_type = PrototypedFrom("config")
-    dx_point_window_len = PrototypedFrom("config") 
+    dx_point_window_len = PrototypedFrom("config")
     db_point_type = PrototypedFrom("config")
-    db_point_window_len = PrototypedFrom("config") 
-    
+    db_point_window_len = PrototypedFrom("config")
+
     # Impedance Data
     z0_winsor_min = CFloat(0.005)
     z0_winsor_max = CFloat(0.005)
@@ -427,7 +395,7 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.dzdt_data,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
-    
+
     # Doppler radar
     doppler_winsor_min = CFloat(0.005)
     doppler_winsor_max = CFloat(0.005)
@@ -448,7 +416,7 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.doppler_data,
                           pre_msec=self.doppler_pre_peak,post_msec=self.doppler_post_peak,
                           sampling_rate=self.doppler_sampling_rate)
-    
+
     # Respiration
     resp_corrected_dzdt_matrix = Property(Array,depends_on="peak_indices")
     mea_resp_corrected_dzdt_matrix = Array
@@ -459,7 +427,7 @@ class PhysioData(HasTraits):
         return peak_stack(self.peak_indices,self.resp_corrected_dzdt,
                           pre_msec=self.dzdt_pre_peak,post_msec=self.dzdt_post_peak,
                           sampling_rate=self.dzdt_sampling_rate)
-    
+
 
     # ECG
     ecg_included = CBool(False)
@@ -541,7 +509,7 @@ class PhysioData(HasTraits):
     mea_systolic_matrix = Array
     @cached_property
     def _get_systolic_matrix(self):
-        if self.peak_indices.size == 0 or not ("systolic" in self.contents): 
+        if self.peak_indices.size == 0 or not ("systolic" in self.contents):
             return np.array([])
         return peak_stack(self.peak_indices,self.systolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -563,7 +531,7 @@ class PhysioData(HasTraits):
     mea_diastolic_matrix = Array
     @cached_property
     def _get_diastolic_matrix(self):
-        if self.peak_indices.size == 0 or not ("diastolic" in self.contents): 
+        if self.peak_indices.size == 0 or not ("diastolic" in self.contents):
             return np.array([])
         return peak_stack(self.peak_indices,self.diastolic_data,
                           pre_msec=self.bp_pre_peak,post_msec=self.bp_post_peak,
@@ -611,7 +579,7 @@ class PhysioData(HasTraits):
     dne_peak_times = Array
     dne_peak_indices = CArray(dtype=np.int)
     # Any custom labels for heartbeats go here
-    hand_labeled = Instance(np.ndarray) # An array of beat indices, each corresponding 
+    hand_labeled = Instance(np.ndarray) # An array of beat indices, each corresponding
     def _hand_labeled_default(self):
         return np.zeros_like(self.peak_indices)
     # Is the beat usable for analysis?
@@ -652,18 +620,18 @@ class PhysioData(HasTraits):
     diastole_indices = Instance(np.ndarray)
     def _diastole_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    
-    # Indices for doppler 
-    db_indices = Instance(np.ndarray) 
+
+    # Indices for doppler
+    db_indices = Instance(np.ndarray)
     def _db_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    db_indices = Instance(np.ndarray) 
+    db_indices = Instance(np.ndarray)
     def _db_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    dx_indices = Instance(np.ndarray) 
+    dx_indices = Instance(np.ndarray)
     def _dx_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    dx_indices = Instance(np.ndarray) 
+    dx_indices = Instance(np.ndarray)
     def _dx_indices_default(self):
         return np.zeros_like(self.peak_indices)
 
@@ -699,8 +667,8 @@ class PhysioData(HasTraits):
     @cached_property
     def _get_subject_l(self):
         """
-        Uses information from the subject measurements to define the 
-        l variable for calculating stroke volume. 
+        Uses information from the subject measurements to define the
+        l variable for calculating stroke volume.
 
         if left and right electrode distances are provided, use the average
         if front and back electrode distances are provided, use the average
@@ -741,7 +709,7 @@ class PhysioData(HasTraits):
     # PanTomkins parameters
     qrs_source_signal = Enum("ecg", "ecg2")
     bandpass_min = PrototypedFrom("config")
-    bandpass_max =PrototypedFrom("config") 
+    bandpass_max =PrototypedFrom("config")
     smoothing_window_len = PrototypedFrom("config")
     smoothing_window = PrototypedFrom("config")
     pt_adjust = PrototypedFrom("config")
@@ -801,7 +769,7 @@ class PhysioData(HasTraits):
     pep = Array
     sv = Array
     resp_corrected_sv = Array
-    map = Array    
+    map = Array
     systolic = Array
     diastolic = Array
     hr = Array
@@ -812,9 +780,32 @@ class PhysioData(HasTraits):
     def _config_default(self):
         return MEAPConfig()
 
+
+    # SRVF-warping parameters
+    srvf_lambda = PrototypedFrom("config")
+    srvf_max_karcher_iterations = PrototypedFrom("config")
+    srvf_update_min = PrototypedFrom("config")
+    srvf_karcher_mean_subset_size = PrototypedFrom("config")
+    srvf_multi_mode_variance_cutoff = PrototypedFrom("config")
+    srvf_use_moving_ensembled = PrototypedFrom("config")
+    dzdt_num_inputs_to_group_warping = PrototypedFrom("config")
+    srvf_t_min = PrototypedFrom("config")
+    srvf_t_max = PrototypedFrom("config")
+    bspline_before_warping = PrototypedFrom("config")
+    dzdt_srvf_karcher_mean = Array
+    dzdt_karcher_mean = Array
+    dzdt_warping_functions = Array
+    # Holds indices of beats used to calculate karcher mean
+    dzdt_karcher_mean_inputs = Array
+    dzdt_karcher_mean_over_iterations = Array
+    srvf_iteration_distances = Array
+    srvf_iteration_energy = Array
+
+
+
     # Storing and accessing the bpoint classifier
     bpoint_classifier_file = File
-    
+
 
     def save(self,outfile):
         # Populate matfile-friendly data structures for censoring regions
@@ -852,7 +843,7 @@ class PhysioData(HasTraits):
             savemat(outfile, savedict,long_field_names=True)
         except Exception,e:
             messagebox("Failed to save %s:\n\n%s"%(outfile,e))
-            
+
 def load_from_disk(matfile, config=None,verbose=False):
     """
     Loads a .mea file from disk

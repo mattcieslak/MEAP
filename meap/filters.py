@@ -7,31 +7,9 @@ from scipy.signal import butter, decimate
 from scipy.interpolate import interp1d
 from scipy.special import legendre
 from collections import defaultdict
-#from mlpy import dtw_std
 
 
-def morlet_cwt(ts):
-    """ Computes a 2d time vs scale series"""
-    x = ts - ts.mean()
-    sigma2 = np.var(x)
     
-def template_to_target_dtw(template,target,penalty=0.1,constraint="itakura", k=50):
-    dist, cost, path = dtw_std(target, template, dist_only=False,
-                                    k=k, warping_penalty=penalty)
-    mapping = defaultdict(list)
-    for mx,my in np.column_stack(path):
-        mapping[mx].append(template[my])
-
-    return np.array([mapping[i][0] if len(mapping[i]) == 1 \
-        else np.mean(mapping[i]) for i in range(len(target))]), dist
-
-def dtw_mapping(template,target,penalty=0.1,constraint="itakura", k=50):
-    dist, cost, path = dtw_std(target, template, dist_only=False,
-                                    k=k, warping_penalty=penalty)
-    mapping = defaultdict(list)
-    for mx,my in np.column_stack(path):
-        mapping[mx].append(my)
-    return mapping, dist
 
 def zero_crossing_index(data):
     crossings = np.flatnonzero(np.diff(np.signbit(data)))
@@ -188,41 +166,6 @@ def morlet(frequencies, scale, k0=6.,
         "dof":2
     }
     
-def morlet_cwt( signal, dj=1./12, s0=2, J1=86, max_scale=200):
-    n_obs = len(signal)
-    # Remove DC
-    x = signal - signal.mean()
-    sigma2 = x.var()
-    
-    # Double the length of the signal and maake it a power of 2
-    x = np.concatenate([x,np.zeros( 2 ** np.ceil(np.log2(n_obs )+1 )- n_obs)])
-    f = np.fft.fft(x)
-    n = len(x)
-    k = np.arange(1, np.floor(n / 2)+1)
-    k = k * 2 * np.pi / n 
-    k =np.concatenate([[0], k, -k[ :-1: ][::-1] ])
-    scale = s0 * 2 ** ( np.arange(J1+1) * dj)
-    period = scale
-
-    results = []
-    for a1 in xrange(J1 + 1):
-        wb = morlet(k, scale[a1])
-        results.append(np.fft.ifft(f * wb['daughter']) / len(f))
-    
-    wave = np.row_stack(results)[:,:n_obs]
-    period = wb['fourier_factor'] * scale
-    #freqs = 1000 / period # Frequency of the wavelet
-    power_ = np.absolute(wave) **2
-    phase = np.angle(wave)
-    
-    power_corr = power_ * max_scale / period[:,np.newaxis]
-    return {
-                   "power_corr":power_corr,
-                   "wave":wave,
-                   "phase":phase,
-                   "period":period
-       #            "freqs":freqs
-    }
     
     
 def lowpass(data, max_freq, sampling_rate):
