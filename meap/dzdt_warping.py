@@ -7,10 +7,11 @@ import os
 from traitsui.api import Item,HGroup,VGroup, HSplit
 from traitsui.menu import OKButton, CancelButton
 from enable.component_editor import ComponentEditor
-from chaco.api import (Plot, ArrayPlotData, HPlotContainer,jet)
+from chaco.api import (Plot, ArrayPlotData, VPlotContainer, HPlotContainer,jet)
 import numpy as np
 eps = np.finfo(np.float64).eps
 from pyface.api import ProgressDialog
+from meap.meap_timeseries import MEAPTimeseries
 
 from meap.beat_train import MEABeatTrain
 from meap.meap_timeseries import MEAPTimeseries
@@ -28,6 +29,8 @@ from srvf_register.SqrtMeanInverse import SqrtMeanInverse
 
 from scipy.integrate import trapz
 from scipy.interpolate import UnivariateSpline
+
+from meap.point_marker2 import BTool, BMarker
 
 
 class GroupRegisterDZDT(HasTraits):
@@ -56,17 +59,12 @@ class GroupRegisterDZDT(HasTraits):
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
 
-    # For selecting points on the Karcher Mean
-    btool_t = Float(0.)
-    btool_t_selection = Float(0.)
-    xtool_t = Float(0.)
-    xtool_t_selection = Float(0.)
+
     # graphics items
     karcher_plot = Instance(Plot, transient=True)
     registration_plot = Instance(HPlotContainer, transient=True)
     karcher_plotdata = Instance(ArrayPlotData, transient=True)
-    currently_editing = Enum("b", "x")
-    t_offset = Float()
+    currently_editing = Enum("none", "b", "x")
 
     # Buttons
     b_calculate_karcher_mean = Button(label="Calculate Karcher Mean")
@@ -75,6 +73,13 @@ class GroupRegisterDZDT(HasTraits):
     b_update_x_point = Button(label="Update X-Point")
 
     interactive = Bool(False)
+
+    # Hold the physio plots
+    # For selecting points on the Karcher Mean
+    ptool_t = Float(0.)
+    ptool_t_selection = Float(0.)
+    point_plots = Instance(VPlotContainer,transient=True)
+    ptool_index_in_warps = Int()
 
     def __init__(self,**traits):
         super(GroupRegisterDZDT,self).__init__(**traits)
@@ -86,27 +91,13 @@ class GroupRegisterDZDT(HasTraits):
         self.karcher_mean_calculated = self.dzdt_srvf_karcher_mean.size > 0 \
                                 and self.dzdt_karcher_mean.size > 0
 
-        # offset from t=0 at R peak
-        self.t_offset = self.physiodata.dzdt_pre_peak
-        self.original_functions = self.physiodata.mea_dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max] if \
-                self.srvf_use_moving_ensembled else self.physiodata.dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max]
-        self.sample_times = np.arange(self.srvf_t_max - self.srvf_t_min,
-                                        dtype=np.float)
+        # Process dZdt data before srvf analysis
+        self._update_original_functions()
 
         self.n_functions = self.original_functions.shape[0]
         self.n_samples = self.original_functions.shape[1]
         self.karcher_mean_time = self.sample_times + self.srvf_t_min \
                                     - self.physiodata.dzdt_pre_peak
-
-        if self.bspline_before_warping:
-            logger.info("Smoothing inputs with B-Splines")
-            self.original_functions = np.row_stack([ UnivariateSpline(
-                self.sample_times, func, s=0.05)(self.sample_times) \
-                for func in self.original_functions]
-            )
-
         self._init_warps()
 
         self.select_new_samples()
@@ -118,6 +109,63 @@ class GroupRegisterDZDT(HasTraits):
 
     def _global_ensemble_default(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
+
+    def _ptool_t_changed(self):
+        """ Responds when the cursor moves in the mean plot"""
+        if self.currently_editing == "none":
+            return
+
+        """
+        self.point_plotdata = ArrayPlotData(
+            peak_times=self.physiodata.peak_times.flatten(),
+            x_times = self.physiodata.x_indices - self.physiodata.dzdt_pre_peak,
+            lvet = self.physiodata.lvet,
+            pep = self.physiodata.pep
+        )
+        """
+        # ptool_t is in dzdt_time
+        icg_t_offset = self.physiodata.dzdt_pre_peak
+        self.ptool_index_in_warps = int(
+                    np.floor(self.ptool_t - self.srvf_t_min + icg_t_offset))
+        logger.info("Closest index %d, ptool_t %.2f",
+                    self.ptool_index_in_warps, self.ptool_t)
+        if self.currently_editing == "b":
+            b_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
+            lvet = self.physiodata.x_indices - b_indices
+            pep = b_indices - icg_t_offset
+            self.point_plotdata.set_data("pep", pep)
+
+        elif self.currently_editing == "x":
+            x_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
+            lvet = x_indices - self.physiodata.b_indices
+            self.point_plotdata.set_data("x_times",x_indices - icg_t_offset)
+
+        self.point_plotdata.set_data("lvet", lvet)
+
+    def _ptool_t_selection_changed(self):
+        if self.currently_editing == "none": return
+        self.currently_editing = "none"
+        self.karcher_plot.title = ""
+        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
+        self.physiodata.pep = self.point_plotdata.get_data("pep")
+        self.physiodata.x_indices = self.dzdt_warping_functions[:,
+                                                    self.ptool_index_in_warps]
+        self.physiodata.b_indices = self.dzdt_warping_functions[:,
+                                                    self.ptool_index_in_warps]
+
+    def _b_update_b_point_fired(self):
+        if not self.all_beats_registered:
+            messagebox("Click Warp all first.")
+            return
+        self.currently_editing = "b"
+        self.karcher_plot.title = "Select B Point"
+
+    def _b_update_x_point_fired(self):
+        if not self.all_beats_registered:
+            messagebox("Click Warp all first.")
+            return
+        self.currently_editing = "x"
+        self.karcher_plot.title = "Select X Point"
 
     def _karcher_plot_default(self):
         """
@@ -141,9 +189,19 @@ class GroupRegisterDZDT(HasTraits):
         karcher_plot = Plot(self.karcher_plotdata)
         karcher_plot.plot(("time","unregistered_mean"),
                     line_width=1,color="lightblue")
-        karcher_plot.plot(("karcher_time","karcher_mean"),
-                    line_width=3,color="blue")
-        karcher_plot.title = "Means"
+        line_plot = karcher_plot.plot(("karcher_time","karcher_mean"),
+                    line_width=3,color="blue")[0]
+        # Create an overlay tool
+        karcher_plot.datasources['karcher_time'].sort_order = "ascending"
+        p_tool = BTool(line_plot=line_plot, component=karcher_plot)
+        karcher_plot.overlays.append(p_tool)
+        p_tool.sync_trait("time",self,"ptool_t")
+        p_tool.sync_trait("selected_time",self,"ptool_t_selection")
+        # Create a marker
+        p_marker = BMarker(line_plot=line_plot, component=karcher_plot,
+                       color="black",selected_time=self.global_ensemble.b.time)
+        karcher_plot.overlays.append(p_marker)
+
         return karcher_plot
 
     def _registration_plot_default(self):
@@ -186,7 +244,6 @@ class GroupRegisterDZDT(HasTraits):
 
         return HPlotContainer(self.single_plot, self.all_plot)
 
-
     def _forward_warp_beats(self):
         """ Create registered beats to plot, since they're not stored """
         pass
@@ -203,7 +260,6 @@ class GroupRegisterDZDT(HasTraits):
 
         self.registered_functions = aligned_functions
 
-
     @on_trait_change("dzdt_num_inputs_to_group_warping")
     def select_new_samples(self):
         nbeats = self.original_functions.shape[0]
@@ -212,12 +268,32 @@ class GroupRegisterDZDT(HasTraits):
 
     @on_trait_change(
        ("physiodata.srvf_lambda, physiodata.srvf_karcher_iterations, "
-        "physiodata.srvf_update_min, "
-        "physiodata.srvf_karcher_mean_subset_size"
+        "physiodata.srvf_update_min, physiodata.srvf_use_moving_ensembled, "
+        "physiodata.srvf_karcher_mean_subset_size, "
+        "physiodata.bspline_before_warping"
     ))
     def params_edited(self):
         self.dirty = True
         self.karcher_mean_calculated = False
+        self.all_beats_registered = False
+        self._update_original_functions()
+
+    def _update_original_functions(self):
+        logger.info("updating functions to register")
+        # offset from t=0 at R peak
+        self.original_functions = self.physiodata.mea_dzdt_matrix[
+                                    : , self.srvf_t_min:self.srvf_t_max] if \
+                self.srvf_use_moving_ensembled else self.physiodata.dzdt_matrix[
+                                    : , self.srvf_t_min:self.srvf_t_max]
+        self.sample_times = np.arange(self.srvf_t_max - self.srvf_t_min,
+                                        dtype=np.float)
+
+        if self.bspline_before_warping:
+            logger.info("Smoothing inputs with B-Splines")
+            self.original_functions = np.row_stack([ UnivariateSpline(
+                self.sample_times, func, s=0.05)(self.sample_times) \
+                for func in self.original_functions]
+            )
 
     def _b_calculate_karcher_mean_fired(self):
         self.calculate_karcher_mean()
@@ -296,31 +372,65 @@ class GroupRegisterDZDT(HasTraits):
         if self.interactive:
             progress.update(k+1)
 
+        self.all_beats_registered = True
+
+
+    def _point_plots_default(self):
+        """
+        Instead of defining these in __init__, only
+        construct the plots when a ui is requested
+        """
+
+        self.point_plotdata = ArrayPlotData(
+            peak_times=self.physiodata.peak_times.flatten(),
+            x_times = self.physiodata.x_indices - self.physiodata.dzdt_pre_peak,
+            lvet = self.physiodata.lvet,
+            pep = self.physiodata.pep
+        )
+
+        container = VPlotContainer(
+            resizable="hv", bgcolor="lightgray", fill_padding=True, padding=10
+        )
+
+        for sig in ("pep", "x_times","lvet"):
+            temp_plt = Plot(self.point_plotdata)
+            temp_plt.plot(("peak_times",sig),line_width=2)
+            temp_plt.title = sig
+            container.add(temp_plt)
+        container.padding_top =10
+
+        return container
+
     mean_widgets =VGroup(
-            Item("karcher_plot",editor=ComponentEditor(),
-                 show_label=False),
-            Item("registration_plot", editor=ComponentEditor(),
-                show_label=False)
-            Item("srvf_lambda",label="Lambda Value"),
-            Item("dzdt_num_inputs_to_group_warping",
-                    label="Template uses N beats"),
-            Item("srvf_max_karcher_iterations", label="Max Iterations"),
-            HGroup(
-                Item("b_calculate_karcher_mean", label="Step 1:",
-                    enabled_when="dirty"),
-                Item("b_align_all_beats", label="Step 2:",
-                    enabled_when="karcher_mean_calculated")
-            ),
-            HGroup(
+        HGroup(
                 Item("b_update_b_point", show_label=False,
                     enabled_when="karcher_mean_calculated"),
                 Item("b_update_x_point", show_label=False,
                     enabled_when="karcher_mean_calculated")
-            )
+        ),
+        VGroup(
+            Item("karcher_plot",editor=ComponentEditor(),
+                 show_label=False),
+            Item("registration_plot", editor=ComponentEditor(),
+                show_label=False), show_labels=False),
+            Item("srvf_use_moving_ensembled",
+                    label="Use Moving Ensembled dZ/dt"),
+            Item("bspline_before_warping",label="B Spline smoothing"),
+            Item("srvf_lambda",label="Lambda Value"),
+            Item("dzdt_num_inputs_to_group_warping",
+                    label="Template uses N beats"),
+            Item("srvf_max_karcher_iterations", label="Max Iterations"),
+        HGroup(
+            Item("b_calculate_karcher_mean", label="Step 1:",
+                enabled_when="dirty"),
+            Item("b_align_all_beats", label="Step 2:",
+                enabled_when="karcher_mean_calculated")
+        ),
     )
 
     traits_view = MEAPView(
         HSplit(
+            Item("point_plots", editor=ComponentEditor(),show_label=False),
             mean_widgets
         ),
         resizable=True,
