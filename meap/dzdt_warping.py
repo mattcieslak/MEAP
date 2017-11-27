@@ -152,6 +152,10 @@ class GroupRegisterDZDT(HasTraits):
                                                     self.ptool_index_in_warps]
         self.physiodata.b_indices = self.dzdt_warping_functions[:,
                                                     self.ptool_index_in_warps]
+        if self.currently_editing == "b":
+            self.global_ensemble.b.set_time(self.ptool_t)
+        elif self.currently_editing == "x":
+            self.global_ensemble.x.set_time(self.ptool_t)
 
     def _b_update_b_point_fired(self):
         if not self.all_beats_registered:
@@ -373,7 +377,6 @@ class GroupRegisterDZDT(HasTraits):
             progress.update(k+1)
 
         self.all_beats_registered = True
-
 
     def _point_plots_default(self):
         """

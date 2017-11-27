@@ -8,6 +8,7 @@ from meap.subject_info import SubjectInfo
 from meap.io import PhysioData, load_from_disk
 from meap.data_plot import DataPlot
 from meap.physio_regressors import FMRITool
+from meap.dzdt_warping import GroupRegisterDZDT
 import os
 from traits.api import (HasTraits, Bool,  Instance, File, Button, Dict)
 from traitsui.api import Item, VGroup, spring
@@ -31,6 +32,7 @@ class MEAPPipeline(HasTraits):
     b_detect = Button(label="Detect QRS Complexes")
     b_custom_points = Button(label="Label Waveform Points")
     b_moving_ens = Button(label="Compute Moving Ensembles")
+    b_register = Button(label="Register dZ/dt")
     b_fmri_tool = Button(label="Process fMRI")
     b_load_experiment = Button(label="Load Design File")
     b_save = Button(label="save .meap file")
@@ -108,6 +110,9 @@ class MEAPPipeline(HasTraits):
     def _b_moving_ens_fired(self):
         MovingEnsembler(physiodata=self.physiodata).edit_traits()
         
+    def _b_register_fired(self):
+        GroupRegisterDZDT(physiodata=self.physiodata).edit_traits()
+        
     def _b_save_fired(self):
         print "writing", self.outfile
         if os.path.exists(self.outfile):
@@ -137,6 +142,7 @@ class MEAPPipeline(HasTraits):
                 Item("b_detect",enabled_when="physiodata is not None"),
                 Item("b_custom_points",enabled_when="peaks_detected"),
                 Item("b_moving_ens",enabled_when="global_ensemble_marked"),
+                Item("b_register",enabled_when="peaks_detected"),
                 Item("b_fmri_tool", enabled_when="physiodata.processed_respiration_data.size > 0"),
                 Item("b_save",
                      enabled_when="outfile.endswith('.mea') or outfile.endswith('.mea.mat')"),
