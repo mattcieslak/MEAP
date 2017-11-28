@@ -153,9 +153,15 @@ class GroupRegisterDZDT(HasTraits):
         self.physiodata.b_indices = self.dzdt_warping_functions[:,
                                                     self.ptool_index_in_warps]
         if self.currently_editing == "b":
-            self.global_ensemble.b.set_time(self.ptool_t)
+            orig_time = self.physiodata.ens_avg_b_time
+            self.physiodata.ens_avg_b_time = self.ptool_t
+            logger.info("Changed B from %d to %d", orig_time,
+                        self.physiodata.ens_avg_b_time)
         elif self.currently_editing == "x":
-            self.global_ensemble.x.set_time(self.ptool_t)
+            orig_time = self.physiodata.ens_avg_x_time
+            self.physiodata.ens_avg_x_time = self.ptool_t
+            logger.info("Changed X from %d to %d", orig_time,
+                        self.physiodata.ens_avg_x_time)
 
     def _b_update_b_point_fired(self):
         if not self.all_beats_registered:
