@@ -1,4 +1,5 @@
 imports = [
+    'cython',
     'pyface.grid.grid',
     'numpy.core.info',
     'traits.ctraits',
@@ -2020,4 +2021,8 @@ imports = [
     'enable.simple_layout',
     'traitsui.null.font_trait',
     'pytz',
+    'srvf_register',
+    'srvf_register._registration_problem',
+    'srvf_register.SqrtMeanInverse',
+    'srvf_register.dynamic_programming_q2',
     'pandas.sparse.series']
