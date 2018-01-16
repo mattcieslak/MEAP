@@ -23,7 +23,9 @@ a.datas += [
           ('resources/logo512x512.png',
           '/Users/matt/projects/MEAP/meap/resources/logo512x512.png','DATA'),
           ('resources/meap.png',
-          '/Users/matt/projects/MEAP/meap/resources/meap.png','DATA')
+          '/Users/matt/projects/MEAP/meap/resources/meap.png','DATA'),
+	  ('srvf_register/dynamic_programming_q2.so',
+          '/Users/matt/projects/srvf_register/srvf_register/dynamic_programming_q2.so', 'EXTENSION')
 ]
 
 pyz = PYZ(a.pure, a.zipped_data,
