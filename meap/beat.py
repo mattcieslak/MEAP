@@ -174,17 +174,12 @@ class HeartBeat(HasTraits):
     btool_t = Float(0.)
     btool_t_selection = Float(0.)
 
-    # Traits from ICG editor
-    dbtool_t = Float(0.)
-    dbtool_t_selection = Float(0.)
-    dxtool_t = Float(0.)
-    dxtool_t_selection = Float(0.)
-
     # Traits from doppler editor
-    dbtool_t = Float(0.)
-    dbtool_t_selection = Float(0.)
-    dxtool_t = Float(0.)
-    dxtool_t_selection = Float(0.)
+    dtool_t = Float(0.)
+    dtool_t_selection = Float(0.)
+    db_point_type = DelegatesTo("physiodata")
+    dx_point_type = DelegatesTo("physiodata")
+    doppler_currently_editing = Enum("db","dx")
 
     available_widgets = DelegatesTo("physiodata")
 
@@ -353,6 +348,10 @@ class HeartBeat(HasTraits):
         if self.physiodata.using_continuous_bp:
             self.systole.set_index(self.physiodata.systole_indices[self.id])
             self.diastole.set_index(self.physiodata.diastole_indices[self.id])
+        # doppler
+        if "doppler" in self.physiodata.contents:
+            self.db.set_index(self.physiodata.db_indices[self.id])
+            self.dx.set_index(self.physiodata.dx_indices[self.id])
 
     def _get_point_times(self):
         return np.array(
@@ -730,19 +729,13 @@ class HeartBeat(HasTraits):
         container = HPlotContainer(vcon_left, vcon_right)
         return container
 
-    def _dbtool_t_selection_changed(self):
-        logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
-        self.db.set_time(self.dbtool_t_selection)
-        if self.plotdata is not None:
-            self.plotdata.set_data('point_values', self._get_plt_point_values())
-            self.plotdata.set_data('point_times', self._get_point_times())
-            self.physiodata.hand_labeled[self.id] = 1
-            self.plot.request_redraw()
-            self.point_updated=True
-
-    def _dxtool_t_selection_changed(self):
-        logger.info("[in HeartBeat] b set to %.2f" % self.btool_t_selection)
-        self.dx.set_time(self.dxtool_t_selection)
+    def _dtool_t_selection_changed(self):
+        logger.info("[in HeartBeat] %s set to %.2f" % (
+            self.doppler_currently_editing, self.dtool_t_selection))
+        if self.doppler_currently_editing == "db":
+            self.db.set_time(self.dtool_t_selection)
+        elif self.doppler_currently_editing == "dx":
+            self.dx.set_time(self.dtool_t_selection)
         if self.plotdata is not None:
             self.plotdata.set_data('point_values', self._get_plt_point_values())
             self.plotdata.set_data('point_times', self._get_point_times())
@@ -757,13 +750,12 @@ class HeartBeat(HasTraits):
                     "doppler_signal": self.doppler_signal,
         }
         plot_dzdt = "dzdt" in self.physiodata.contents
-        def quick_norm(signal,ref_signal):
-            sig = normalize(signal)
-            sig = sig * (ref_signal.max() - ref_signal.min()) + ref_signal.min()
-            return sig
+        norm_dzdt = normalize(self.dzdt_signal)
+        scale = self.doppler_signal.max() - self.doppler_signal.min()
+        scaled_dzdt = scale * norm_dzdt + self.doppler_signal.min()
+
         if plot_dzdt:
-            signals["dzdt_signal"] = quick_norm(
-                                self.doppler_signal, self.dzdt_signal)
+            signals["dzdt_signal"] = scaled_dzdt
 
         self.doppler_plotdata = ArrayPlotData(**signals)
 
@@ -776,23 +768,15 @@ class HeartBeat(HasTraits):
                 color=colors['doppler'])[0]
 
         # Tools for the db point
-        main_plot_dbtool = DBTool(line_plot=main_plot_line,
+        main_plot_dtool = BTool(line_plot=main_plot_line,
                                   component=main_plot)
-        main_plot.overlays.append(main_plot_dbtool)
-        main_plot_dbtool.sync_trait("time",self, "dbtool_t")
-        main_plot_dbtool.sync_trait("selected_time",self,
-                                    "dbtool_t_selection")
-        main_plot_dbmarker = BMarker(line_plot=main_plot_line, component=main_plot,
-                selected_time=self.db.time,line_style='dash',color='maroon')
-        main_plot.overlays.append(main_plot_dbmarker)
-
-        # Tools for the dx point
-        main_plot_dbtool.sync_trait("time",self, "dxtool_t")
-        main_plot_dbtool.sync_trait("x_selected_time",self,
-                                    "dxtool_t_selection")
-        main_plot_dxmarker = BMarker(line_plot=main_plot_line, component=main_plot,
-                                    selected_time=self.dx.time,line_style='dash',color='darkblue')
-        main_plot.overlays.append(main_plot_dxmarker)
+        main_plot.overlays.append(main_plot_dtool)
+        main_plot_dtool.sync_trait("time",self, "dtool_t")
+        main_plot_dtool.sync_trait("selected_time",self,
+                                    "dtool_t_selection")
+        main_plot_dmarker = BMarker(line_plot=main_plot_line, component=main_plot,
+                selected_time=self.db.time, line_style='dash',color='maroon')
+        main_plot.overlays.append(main_plot_dmarker)
 
         # Create container
         vcon_left = HPlotContainer()
@@ -907,7 +891,13 @@ class HeartBeat(HasTraits):
 
             elif widget == "Doppler":
                 panels.append(
-                    Item("doppler_plot",editor=ComponentEditor(),label="Doppler"))
+                    Group(
+                        Group(Item("doppler_currently_editing",label="Selecting"),
+                        Item("db_point_type"), Item("dx_point_type"),
+                            orientation="horizontal"),
+                    Item("doppler_plot",editor=ComponentEditor()),
+                    label="Doppler")
+                )
 
         return MEAPView(
             HSplit(
