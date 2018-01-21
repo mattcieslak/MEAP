@@ -625,12 +625,6 @@ class PhysioData(HasTraits):
     db_indices = Instance(np.ndarray)
     def _db_indices_default(self):
         return np.zeros_like(self.peak_indices)
-    db_indices = Instance(np.ndarray)
-    def _db_indices_default(self):
-        return np.zeros_like(self.peak_indices)
-    dx_indices = Instance(np.ndarray)
-    def _dx_indices_default(self):
-        return np.zeros_like(self.peak_indices)
     dx_indices = Instance(np.ndarray)
     def _dx_indices_default(self):
         return np.zeros_like(self.peak_indices)
@@ -747,12 +741,15 @@ class PhysioData(HasTraits):
     ens_avg_bp_signal = Array
     ens_avg_systolic_signal = Array
     ens_avg_diastolic_signal = Array
+    ens_avg_doppler_signal = Array
     ens_avg_p_time = CFloat
     ens_avg_q_time = CFloat
     ens_avg_r_time = CFloat
     ens_avg_s_time = CFloat
     ens_avg_t_time = CFloat
     ens_avg_b_time = CFloat
+    ens_avg_db_time = CFloat
+    ens_avg_dx_time = CFloat
     ens_avg_c_time = CFloat
     ens_avg_x_time = CFloat
     ens_avg_y_time = CFloat

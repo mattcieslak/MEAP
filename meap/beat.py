@@ -214,13 +214,14 @@ class HeartBeat(HasTraits):
                         getattr(self.physiodata,mat_prefix + signal+"_matrix")[self.id]
                 else:
                     setattr(self, signal + "_signal",
-                        getattr(self.physiodata,mat_prefix + signal+"_matrix")[self.id])
-                if signal == "doppler":
-                    self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
-                    self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+                        getattr(self.physiodata, mat_prefix + signal+"_matrix")[self.id])
+                    if signal == "doppler":
+                        self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                        self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
                 if signal == "dzdt":
                     self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
                     self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
+            self.hand_labeled = self.physiodata.hand_labeled[self.id] > 0
 
     def _set_default_times(self):
         # Set the default times to be consistent with physiodata
@@ -314,6 +315,9 @@ class HeartBeat(HasTraits):
 
     def mark_points(self,waveform_prior=None):
         if not self.usable: return
+        if self.hand_labeled:
+            logger.info("[%d] Hand-labeled beat skipped", self.id)
+
         if self.marking_strategy == "custom peaks" and waveform_prior is None:
             raise ValueError("A HeartBeat object is required for custom point marking")
 
@@ -586,8 +590,9 @@ class HeartBeat(HasTraits):
         tp = self.point_picker.currently_dragging_point
         label = getattr(self,tp+"_label")
         point = getattr(self, tp)
-        point.time = self.point_picker.current_time
-        point.index = self.point_picker.current_index
+        #point.time = self.point_picker.current_time
+        #point.index = self.point_picker.current_index
+        point.set_index(self.point_picker.current_index) # Critical change
 
         # If the point is for bp and we're using CNAP, the actual value matters
         if self.physiodata.using_continuous_bp and tp in ("systole","diastole"):
@@ -732,13 +737,20 @@ class HeartBeat(HasTraits):
     def _dtool_t_selection_changed(self):
         logger.info("[in HeartBeat] %s set to %.2f" % (
             self.doppler_currently_editing, self.dtool_t_selection))
+        changed = False
         if self.doppler_currently_editing == "db":
             self.db.set_time(self.dtool_t_selection)
+            assert self.db.time == self.dtool_t_selection # debugging check
+            changed = True
         elif self.doppler_currently_editing == "dx":
             self.dx.set_time(self.dtool_t_selection)
+            assert self.dx.time == self.dtool_t_selection
+            changed = True
+        assert changed
         if self.plotdata is not None:
             self.plotdata.set_data('point_values', self._get_plt_point_values())
             self.plotdata.set_data('point_times', self._get_point_times())
+            self.hand_labeled = True
             self.physiodata.hand_labeled[self.id] = 1
             self.plot.request_redraw()
             self.point_updated=True
@@ -895,7 +907,7 @@ class HeartBeat(HasTraits):
                         Group(Item("doppler_currently_editing",label="Selecting"),
                         Item("db_point_type"), Item("dx_point_type"),
                             orientation="horizontal"),
-                    Item("doppler_plot",editor=ComponentEditor()),
+                    Item("doppler_plot",editor=ComponentEditor(), show_label=False),
                     label="Doppler")
                 )
 
@@ -1010,6 +1022,13 @@ class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
         self.o.sync_trait("time",self.physiodata,"ens_avg_o_time")
         self.physiodata.ens_avg_ecg_signal = self.ecg_signal
         self.physiodata.ens_avg_dzdt_signal = self.dzdt_signal
+
+        if "doppler" in self.physiodata.contents:
+            self.db.set_time(self.physiodata.ens_avg_db_time)
+            self.dx.set_time(self.physiodata.ens_avg_dx_time)
+            self.physiodata.ens_avg_doppler_signal = self.doppler_signal
+            self.db.sync_trait("time",self.physiodata,"ens_avg_db_time")
+            self.dx.sync_trait("time",self.physiodata,"ens_avg_dx_time")
 
     def _get_max_beats(self):
         return len(self.physiodata.peak_times)

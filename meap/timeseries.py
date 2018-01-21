@@ -1,7 +1,7 @@
 from traits.api import (HasTraits, Str, Array, Float,
           Bool, Enum, Instance, on_trait_change,Property,
           Button, List, CInt, CFloat)
-from traitsui.api import (VGroup, HGroup, Item, HSplit, 
+from traitsui.api import (VGroup, HGroup, Item, HSplit,
                           TableEditor,ObjectColumn)
 from traitsui.menu import OKButton, CancelButton
 from chaco.api import Plot, ArrayPlotData
@@ -44,17 +44,17 @@ class CensorRegion(HasTraits):
     viz = Instance(RangeSelectionOverlay,transient=True)
     metadata_name = Str
     plot = Instance(LinePlot,transient=True)
-    
+
     traits_view = MEAPView(
         Item("start_time"),
         Item("end_time")
         )
-        
+
     def set_limits(self,start,end):
         """
         """
         self.plot.index.metadata[self.metadata_name] = start, end
-    
+
     @on_trait_change("plot.index.metadata")
     def metadata_chaned(self):
         try:
@@ -65,7 +65,7 @@ class CensorRegion(HasTraits):
             return
         self.start_time = st
         self.end_time = end
-        
+
     def _viz_default(self):
         self.plot.active_tool = CensorSelection(self.plot,
                                                selection_mode="append",
@@ -76,7 +76,7 @@ class CensorRegion(HasTraits):
                         metadata_name=self.metadata_name)
         self.plot.overlays.append(rso)
         return rso
-    
+
 def overlaps(a,b):
     # requires a[0] <= b[0]
     if a[0] == b[0]:
@@ -84,7 +84,7 @@ def overlaps(a,b):
     if b[0] < a[1] :
         return True
     return False
-    
+
 def censor_region_overlappers(c_regs):
     if len(c_regs) == 0: return []
     # Make sure they don't overlap
@@ -93,9 +93,9 @@ def censor_region_overlappers(c_regs):
     else:
         censor_regions = c_regs
 
-    # Sort them according to the start_time    
+    # Sort them according to the start_time
     censor_regions = sorted(censor_regions,key=lambda x: x[0] )
-    
+
     # Loop over the intervals and merge those that overlap
     i = 0
     while i < len(censor_regions):
@@ -141,24 +141,24 @@ class TimePoint(HasTraits):
         super(TimePoint,self).__init__(**traits)
         self.physiodata = self.beat.physiodata
         self.index_array = getattr(self.physiodata, self.name+"_indices", None)
-        
+
         # For fast time-to-index conversion
         if self.applies_to in ("systolic", "diastolic", "bp"):
             self.offset = self.physiodata.bp_pre_peak
         else:
             self.offset = getattr(self.physiodata,self.applies_to + "_pre_peak")
-        
+
         # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
             try:
-                self.set_index(getattr(self.physiodata, self.name + "_indices")[self.beat.id])
+                self.set_index(self.index_array[self.beat.id])
             except Exception, e:
                 logger.warn("Error setting %s:\n%s",self.name, e)
-            
-          
+
+
     def mark_similar(self,unmarked_beat, smoothing_window_len=21,search_window=SEARCH_WINDOW):
         """
-        Extracts a time point specific to ``unmarked_beat`` that  
+        Extracts a time point specific to ``unmarked_beat`` that
         has similar signal property (min/max/inflection) within
         a specific time window
         """
@@ -171,13 +171,13 @@ class TimePoint(HasTraits):
         if self.index < search_window and self.point_type != "average":
             logger.warn( "timepoint too close to 0 for a symmetric search window")
             return
-        if self.name == "q": 
+        if self.name == "q":
             search_window = 9
             smoothing_window_len = 0
         search_region = ts[
             (self.index-search_window):(self.index+search_window+1)
             ]
-        
+
         # Smooth the timeseries if requested
         if smoothing_window_len > 0:
             search_region = smooth(search_region,
@@ -203,8 +203,8 @@ class TimePoint(HasTraits):
                              [roi[0],roi[-1]]
                             )
             t_ind = r_idx + np.argmax(line-roi)
-            
-        # Average is a special case. 
+
+        # Average is a special case.
         elif self.point_type == "average":
             unmarked_point.value = ts.mean()
             unmarked_point.set_index(0)
@@ -213,21 +213,21 @@ class TimePoint(HasTraits):
         # Check that we aren't hitting an edge of the search reg
         if t_ind in (window_min_idx,window_max_idx):
             bnum = unmarked_beat.id if unmarked_beat.id is not None else -1
-            logger.warn("[%d] %s point detected at edge of search region", 
+            logger.warn("[%d] %s point detected at edge of search region",
                         bnum, self.name)
             unmarked_point.needs_attention = True
         unmarked_point.set_index(t_ind)
         index_array = getattr(unmarked_beat.physiodata, self.name + "_indices")
         #assert index_array[unmarked_beat.id] == t_ind
         return True
-    
+
     def set_time(self,time):
         """
         If all we have is a time, adjust the index and value to match
         """
         self.time = time
         self.set_index(int(time) + self.offset)
-    
+
     def set_index(self,index):
         """
         If all we have is a time, adjust the index and value to match
@@ -237,10 +237,10 @@ class TimePoint(HasTraits):
         self.index = index
         self.value = ts[index]
         if self.index_array is not None and self.beat.id > -1:
-            index_array = getattr(self.physiodata, self.name + "_indices")
-            index_array[self.beat.id] = self.index
-        
-        
+            #index_array = getattr(self.physiodata, self.name + "_indices")
+            self.index_array[self.beat.id] = self.index
+
+
 
 class TimeSeries(HasTraits):
     # Holds data
@@ -264,15 +264,15 @@ class TimeSeries(HasTraits):
     b_info = Button(label="Info", transient=True)
     b_clear_censoring = Button(label="Clear Censoring", transient=True)
     renderer = Instance(LinePlot,transient=True)
-    
-    # For the winsorizing steps    
+
+    # For the winsorizing steps
     winsor_swap = Array
     winsor_min = Float(0.005)
     winsor_max = Float(0.005)
     winsorize = Bool(False)
     winsor_enable = Bool(True)
-    
-    
+
+
     def __init__(self,**traits):
         """
         Class to represent data collected over time
@@ -281,30 +281,30 @@ class TimeSeries(HasTraits):
         if not self.contains in self.physiodata.contents:
             raise ValueError("Signal not found in data")
         self.name = self.contains
-        
+
         # First, check whether it's already winsorized
         winsorize_trait = self.name + "_winsorize"
         if getattr(self.physiodata, winsorize_trait):
             self.winsor_enable = False
         self.winsor_min = getattr(self.physiodata,self.name + "_winsor_min")
         self.winsor_max = getattr(self.physiodata,self.name + "_winsor_max")
-        
+
         # Load the actual data
         self.data = getattr(self.physiodata, self.contains + "_data")
         self.winsor_swap = self.data.copy()
-        
-        self.sampling_rate = getattr(self.physiodata, 
+
+        self.sampling_rate = getattr(self.physiodata,
                                     self.contains + "_sampling_rate")
         self.sampling_rate_unit = getattr(self.physiodata,
                                     self.contains + "_sampling_rate_unit")
-        self.start_time = getattr(self.physiodata, 
+        self.start_time = getattr(self.physiodata,
                                     self.contains + "_start_time")
         """
         The censored regions are loaded from physiodata INITIALLY.
         from that point on the censored regions are accessed from
-        physiodata's  
+        physiodata's
         """
-        
+
         self.line_color = colors[self.contains]
         self.n_censor_intervals = 0
         for (start,end), source in zip(self.physiodata.censored_intervals,
@@ -321,7 +321,7 @@ class TimeSeries(HasTraits):
         name = self.contains + "%03d"%self.n_censor_intervals
         self.n_censor_intervals += 1
         return name
-    
+
     def _winsorize_changed(self):
         if self.winsorize:
             logger.info("Winsorizing %s with limits=(%.5f%.5f)",self.name,self.winsor_min, self.winsor_max)
@@ -330,7 +330,7 @@ class TimeSeries(HasTraits):
                                   limits=(self.winsor_min,self.winsor_max)))
             setattr(self.physiodata,self.name+"_winsor_min",self.winsor_min)
             setattr(self.physiodata,self.name+"_winsor_max",self.winsor_max)
-            
+
         else:
             logger.info("Restoring %s to its original data", self.name)
             self.data = self.winsor_swap.copy()
@@ -339,8 +339,8 @@ class TimeSeries(HasTraits):
         self.plot.range2d.y_range.low = self.data.min()
         self.plot.range2d.y_range.high = self.data.max()
         self.plot.request_redraw()
-        
-        
+
+
     def __str__(self):
         descr = "Timeseries: %s\n" % self.name
         descr += "-" * len(descr) + "\n\t" + \
@@ -363,10 +363,10 @@ class TimeSeries(HasTraits):
         plot.line_width=1
         plot.padding=25
         plot.width = 400
-        
+
         # Load the censor regions and add them to the plot
         for censor_region in self.censored_regions:
-            # Make a censor region on the Timeseries object            
+            # Make a censor region on the Timeseries object
             censor_region.plot = self.renderer
             censor_region.viz
             censor_region.set_limits(censor_region.start_time,
@@ -401,13 +401,13 @@ class TimeSeries(HasTraits):
         self.censored_regions[-1].viz
 
     buttons = VGroup(
-            Item("b_add_censor",show_label=False), 
-            #Item("b_info"), 
-            #Item("b_zoom_y"), 
+            Item("b_add_censor",show_label=False),
+            #Item("b_info"),
+            #Item("b_zoom_y"),
             Item("winsorize",enabled_when="winsor_enable"),
             Item("winsor_max",enabled_when="winsor_enable",format_str="%.4f",width=25),
             Item("winsor_min",enabled_when="winsor_enable",format_str="%.4f",width=25),
-            Item("b_clear_censoring",show_label=False), 
+            Item("b_clear_censoring",show_label=False),
             show_labels=True,show_border=True)
     widgets = HSplit(
         Item('plot',editor=ComponentEditor(), show_label=False),
@@ -415,6 +415,5 @@ class TimeSeries(HasTraits):
 
     zoom_view = MEAPView(
             HGroup("ymin", "ymax"),buttons = [OKButton,CancelButton])
-    
-    traits_view = MEAPView(widgets, width=500, height=300, resizable=True )
 
+    traits_view = MEAPView(widgets, width=500, height=300, resizable=True )

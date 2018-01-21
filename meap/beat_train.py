@@ -13,7 +13,7 @@ from meap import MEAPView
 from traitsui.api import ( Item, TableEditor,
         ObjectColumn,HGroup,VGroup, SetEditor)
 from chaco.api import Plot, ArrayPlotData, ScatterInspectorOverlay
-from chaco.tools.api import ScatterInspector 
+from chaco.tools.api import ScatterInspector
 
 from enable.component_editor import ComponentEditor
 from pyface.api import ProgressDialog
@@ -27,7 +27,7 @@ class LabelStatusColumn(ObjectColumn):
     def get_cell_color(self,object):
         if hasattr(object, "hand_labeled"):
             if object.hand_labeled: return "pink"
-        
+
 
 beat_table = TableEditor(
     columns =
@@ -50,15 +50,15 @@ class BeatTrain(HasTraits):
     z0_matrix = DelegatesTo("physiodata")
     ecg_matrix = DelegatesTo("physiodata")
     dzdt_matrix = DelegatesTo("physiodata")
-    bp_matrix = DelegatesTo("physiodata") 
+    bp_matrix = DelegatesTo("physiodata")
     systolic_matrix = DelegatesTo("physiodata")
     diastolic_matrix = DelegatesTo("physiodata")
-    doppler_matrix = DelegatesTo("physiodata")
+    doppler_matrix = DelegatesTo("physiodata") # Don't moving ensemble
     censored_intervals = DelegatesTo("physiodata")
     use_trimmed_co = DelegatesTo("physiodata")
     censored_secs_before = DelegatesTo("physiodata")
     b_order_plots = Button(label="Change Editor Layout")
-    
+
     available_widgets = DelegatesTo("physiodata", editor=SetEditor(
         ordered=True,
         left_column_title='Available Panels',
@@ -66,9 +66,9 @@ class BeatTrain(HasTraits):
 
     # Physio measures derived by self.beats
     lvet = DelegatesTo("physiodata")
-    co = DelegatesTo("physiodata") 
-    resp_corrected_co = DelegatesTo("physiodata") 
-    pep = DelegatesTo("physiodata") 
+    co = DelegatesTo("physiodata")
+    resp_corrected_co = DelegatesTo("physiodata")
+    pep = DelegatesTo("physiodata")
     sv = DelegatesTo("physiodata")
     resp_corrected_sv = DelegatesTo("physiodata")
     map = DelegatesTo("physiodata")
@@ -83,7 +83,7 @@ class BeatTrain(HasTraits):
     global_ensemble_average = Property(Instance(GlobalEnsembleAveragedHeartBeat))
     rr_intervals = Property(Array)
     moving_ensembled = Bool(False)
-    
+
     # The important trait:
     beats = List(Instance(HeartBeat))
     selected_beat = Instance(HeartBeat)
@@ -100,33 +100,33 @@ class BeatTrain(HasTraits):
 
     subset = Array
     beat_features = Array
-    
+
     def __init__(self,**traits):
         super(BeatTrain,self).__init__(**traits)
         if self.auto_calc_outliers:
-            self.calculate_outliers()  
+            self.calculate_outliers()
         # Initialize the heartrate
         self.get_heartrate()
-            
+
     def _get_global_ensemble_average(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
     def _outlier_plot_data_default(self):
         return ArrayPlotData(
-            x1=np.array([]),        
+            x1=np.array([]),
             x2=np.array([])
         )
-        
+
 
     def __len__(self):
         if self.subset.size == 0:
             return self.physiodata.peak_times.shape[0]
         return self.subset.shape[0]
-    
+
     def calculate_outliers(self):
-        logger.info("Extracting features for outlier detection")        
+        logger.info("Extracting features for outlier detection")
         feature_grabber = outlier_feature_function(self.physiodata.contents)
-        
+
         self.beat_features = np.array(
             [feature_grabber(beat) for beat in self.beats if beat.usable]
         )
@@ -134,7 +134,7 @@ class BeatTrain(HasTraits):
         self.usable_beats = [beat.id for beat in self.beats if beat.usable]
         if self.beat_features.size == 0:
             return
-        
+
         if not self.fitted:
             try:
                 self.fits = FastICA(n_components=2).fit(self.beat_features)
@@ -142,18 +142,18 @@ class BeatTrain(HasTraits):
             except Exception,e:
                 logger.info(e)
                 return
-        
+
         transform_2d = self.fits.transform(self.beat_features)
-        
+
         if self.outlier_plot is not None:
             x,y = transform_2d.T
             beat_ids = np.array([int(b.id) for b in self.beats])
             usable = self.physiodata.usable[beat_ids] > 0
             self.outlier_plot_data.set_data("x1",x)
             self.outlier_plot_data.set_data("x2",y)
-        
+
     def _outlier_plot_default(self):
-        plot = Plot(self.outlier_plot_data, 
+        plot = Plot(self.outlier_plot_data,
                     use_backbuffer=True)
         self.outlier_markers = plot.plot(
                 ("x1","x2"),type="scatter",
@@ -178,13 +178,13 @@ class BeatTrain(HasTraits):
                                     selection_color = "lightblue")
         )
         return plot
-    
+
     @on_trait_change("beats.point_updated")
     def point_hand_labeled(self):
         logger.info("beats.point_updated")
         self.update_param_plot()
         self.calculate_outliers()
-        
+
     def set_beats(self,beats):
         self.beats = beats
         # The ICA model is no longer fitted to these beats
@@ -192,8 +192,8 @@ class BeatTrain(HasTraits):
         if self.outlier_plot is not None:
             self.update_param_plot()
             self.calculate_outliers()
-            
-    
+
+
     def outlier_plot_item_selected(self):
         """a point got clicked in the outlier detector"""
         sel_indices = self.outlier_index_data.metadata.get('selections', [])
@@ -201,23 +201,23 @@ class BeatTrain(HasTraits):
         index = sel_indices[-1]
         #actual_index = [b.id for b in self.beats].index(index)
         self.selected_beat = self.beats[index]
-        
+
     parameter_plot = Instance(Plot,transient=True)
     parameter_plot_data = Instance(ArrayPlotData)
     def _parameter_plot_data_default(self):
         return ArrayPlotData(
-                    beat_id=np.array([b.id for b in self.beats]),        
+                    beat_id=np.array([b.id for b in self.beats]),
                     param_value=np.array([]))
-    
+
     def _parameter_plot_default(self):
         self.update_param_plot()
-        plot = Plot(self.parameter_plot_data, 
+        plot = Plot(self.parameter_plot_data,
                     use_backbuffer=True,
                     )
         param_markers = plot.plot(
                 ("beat_id","param_value"),type="scatter",
                 marker="square", name="param_plot",color="blue")
-        
+
         my_plot = plot.plots["param_plot"][0]
         self.parameter_inspector = ScatterInspector(my_plot, selection_mode="toggle",
                                           persistent_hover=False)
@@ -235,7 +235,7 @@ class BeatTrain(HasTraits):
         )
         plot.padding = 30
         return plot
-    
+
     @on_trait_change("plot_contents")
     def update_param_plot(self):
         if self.plot_contents == "LVET":
@@ -249,15 +249,15 @@ class BeatTrain(HasTraits):
                 np.array([b.id for b in self.beats if b.usable]))
             self.parameter_plot_data.set_data("param_value",
                 np.array([grabber_func(b) for b in self.beats if b.usable]))
-        
+
     def parameter_plot_item_selected(self):
         """a point got clicked in the parameter plotter"""
         sel_indices = self.param_index_data.metadata.get('selections', [])
         if not len(sel_indices):  return
         index = sel_indices[-1]
         self.selected_beat = self.beats[index]
-            
-    
+
+
     @on_trait_change("selected_beat")
     def set_table_index(self):
         selected_id = self.selected_beat.id
@@ -267,19 +267,19 @@ class BeatTrain(HasTraits):
         actual_index = [b.id for b in self.beats].index(self.selected_beat.id)
         self.outlier_inspector._select(actual_index)
         self.parameter_inspector._select(actual_index)
-    
+
     def get_HRV(self):
         return np.nanstd(self.rr_intervals)
-        
+
     def mark_points(self,show_progressbar=False):
         """
         Loops over all the peaks detected by the beat detector. At
-        each point, attempt to find a min/max that correspoinds to 
+        each point, attempt to find a min/max that correspoinds to
         """
         logger.info("Clearing previous point times")
         point_names = [pt.name for pt in self.beats[0].points]
         for point in point_names:
-            setattr(self.physiodata, point+"_indices", 
+            setattr(self.physiodata, point+"_indices",
                     -np.ones(self.physiodata.peak_times.shape,dtype=np.int))
 
         t0=time.time()
@@ -299,7 +299,7 @@ class BeatTrain(HasTraits):
 
         t1= time.time()
         logger.info("point classification took %.3f", t1-t0)
-        
+
     def __iter__(self):
         """
         generates a HeartBeat for each of the signals.
@@ -310,18 +310,18 @@ class BeatTrain(HasTraits):
 
     def _fix_duplicated_beats_bug(self):
         # Check that no two peaks are too close:
-        
+
         peak_diffs = np.ediff1d(self.physiodata.peak_indices, to_begin=500)
         peak_mask = peak_diffs > 200 # Cutoff is 300BPM
         if not np.any(~peak_mask): return
         logger.info("Dataset affected by 1.0.0b peak duplicate bug")
-        self.physiodata.peak_indices = self.physiodata.peak_indices[peak_mask] 
-        self.physiodata.peak_times = self.physiodata.peak_times[peak_mask] 
+        self.physiodata.peak_indices = self.physiodata.peak_indices[peak_mask]
+        self.physiodata.peak_times = self.physiodata.peak_times[peak_mask]
         # The index arrays will be messed up too
         for p in ["p","q","r","s","t","c","x","o","systole","diastole","b"]:
-            setattr(self.physiodata, p + "_indices", 
+            setattr(self.physiodata, p + "_indices",
                     getattr(self.physiodata,p+"_indices")[peak_mask])
-        
+
     def _beats_default(self):
         self._fix_duplicated_beats_bug()
         b = []
@@ -329,19 +329,19 @@ class BeatTrain(HasTraits):
         beat_indices = self.subset if self.subset.size > 0 \
                 else np.arange(len(self.physiodata.peak_times))
         return [HeartBeat(id=n, physiodata=self.physiodata) for n in beat_indices]
-    
+
     def get_heartrate(self):
         self.hr = 60/self.rr_intervals
         return self.hr
-    
+
     def _get_rr_intervals(self):
         """
         Calculating RR intervals is complicated in the presence
         of censored intervals.
         """
-        peak_times = self.physiodata.peak_times 
+        peak_times = self.physiodata.peak_times
         dne_peak_times = self.physiodata.dne_peak_times
-        if dne_peak_times.shape == (): 
+        if dne_peak_times.shape == ():
             dne_peak_times = dne_peak_times.reshape((1,))
 
         all_peaks = np.unique(np.sort(np.concatenate((peak_times,dne_peak_times))))
@@ -356,7 +356,7 @@ class BeatTrain(HasTraits):
             # How many seconds are censored between beats?
             censored_secs_before = np.zeros(len(all_peaks))
 
-            # If two beats are separated by a censoring interval, 
+            # If two beats are separated by a censoring interval,
             # one will precede a censor interval and the next will follow
             for beatnum, (beat1, beat2) in enumerate(zip(all_peaks[:-1], all_peaks[1:])):
                 between_beats = \
@@ -366,7 +366,7 @@ class BeatTrain(HasTraits):
 
 
             # Some rr intervals are separated by a censoring region and are
-            # therefore a simple subtraction won't work.  
+            # therefore a simple subtraction won't work.
             if np.any(hr == 0): raise ValueError("Encountered hr == 0")
             invalids = ( censored_secs_before > 0 )
             if np.any(invalids):
@@ -377,14 +377,14 @@ class BeatTrain(HasTraits):
                 hr[invalids] = interpolated_hr_vals
         if len(dne_peak_times):
             hr = np.interp(peak_times,all_peaks,hr)
-            
+
         return hr
-                
+
     def calculate_physio(self):
         """
         Creates arrays of beat properties from all detected beats.
         """
-        
+
         hr = self.mea_hr if self.moving_ensembled else self.get_heartrate()
         if "lvet" in self.physiodata.calculable_indexes:
             self.lvet = np.array([pt.get_lvet() for pt in self.beats])
@@ -416,8 +416,8 @@ class BeatTrain(HasTraits):
             self.tpr = self.map/self.co * 80
         if "resp_corrected_tpr" in self.physiodata.calculable_indexes:
             self.resp_corrected_tpr = self.map/self.resp_corrected_co * 80
-            
-        
+
+
     traits_view = MEAPView(
         HGroup(
             HGroup(
@@ -435,7 +435,7 @@ class BeatTrain(HasTraits):
         resizable=True,
         win_title = "Beat Train"
         )
-    
+
     panel_order_view = MEAPView(
         HGroup(
             Item("available_widgets",editor=SetEditor(
@@ -447,10 +447,10 @@ class BeatTrain(HasTraits):
         ),
         win_title = "Order Panels"
     )
-    
+
     def _b_order_plots_fired(self):
         self.edit_traits(view="panel_order_view")
-        
+
 class MEABeatTrain(BeatTrain):
     # stacks of waveforms
     z0_matrix = DelegatesTo("physiodata", "mea_z0_matrix")
@@ -459,6 +459,7 @@ class MEABeatTrain(BeatTrain):
     bp_matrix = DelegatesTo("physiodata", "mea_bp_matrix")
     systolic_matrix = DelegatesTo("physiodata","mea_systolic_matrix")
     diastolic_matrix = DelegatesTo("physiodata","mea_diastolic_matrix")
+    doppler_matrix = DelegatesTo("physiodata","mea_doppler_matrix")
     moving_ensembled = Bool(True)
 
     def _beats_default(self):
@@ -467,12 +468,12 @@ class MEABeatTrain(BeatTrain):
         if self.physiodata is None: return b
         beat_indices = self.subset if self.subset.size > 0 \
                 else np.arange(len(self.physiodata.peak_times))
-        return [HeartBeat(id=n, physiodata=self.physiodata, 
+        return [HeartBeat(id=n, physiodata=self.physiodata,
                            moving_ensembled=True) for n in beat_indices]
 
     def update_signals(self):
         """
-        If the mea_``signal``_matrix is changed then each beat needs to 
+        If the mea_``signal``_matrix is changed then each beat needs to
         get its signals reset to be up to date with the physiodata object
         """
         logger.info("Resetting signal data in MEA beats")
