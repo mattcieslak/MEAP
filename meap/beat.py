@@ -315,15 +315,12 @@ class HeartBeat(HasTraits):
 
     def mark_points(self,waveform_prior=None):
         if not self.usable: return
-        if self.hand_labeled:
-            logger.info("[%d] Hand-labeled beat skipped", self.id)
 
-        if self.marking_strategy == "custom peaks" and waveform_prior is None:
+        if self.hand_labeled:
+            logger.info("Using stored point markings for %d",self.id)
+
+        elif self.marking_strategy == "custom peaks" and waveform_prior is None:
             raise ValueError("A HeartBeat object is required for custom point marking")
-
-        if self.hand_labeled:
-            logger.info("Loading stored point markings for %d",self.id)
-            self.load_point_markings()
 
         # Make an initial guess for the points
         elif self.marking_strategy == "heuristic":
@@ -337,7 +334,7 @@ class HeartBeat(HasTraits):
             self.mark_custom_points(waveform_prior=waveform_prior)
 
     def load_point_markings(self):
-        if self.id < 0: return
+        if self.id is None or self.id < 0: return
         # ECG
         self.p.set_index(self.physiodata.p_indices[self.id])
         self.q.set_index(self.physiodata.q_indices[self.id])
@@ -590,8 +587,8 @@ class HeartBeat(HasTraits):
         tp = self.point_picker.currently_dragging_point
         label = getattr(self,tp+"_label")
         point = getattr(self, tp)
-        #point.time = self.point_picker.current_time
-        #point.index = self.point_picker.current_index
+        point.time = self.point_picker.current_time
+        point.index = self.point_picker.current_index
         point.set_index(self.point_picker.current_index) # Critical change
 
         # If the point is for bp and we're using CNAP, the actual value matters
@@ -604,9 +601,8 @@ class HeartBeat(HasTraits):
         rand_adj = np.random.rand()/1000
         label.label_position = (-20+rand_adj,20+rand_adj)
         label.request_redraw()
-        self.hand_labeled = True
         #set hand labeled in physiodata
-        self.physiodata.hand_labeled[self.id] = 1
+        self.set_hand_labeled(True)
 
     def _point_updated(self):
         # Triggers listener on beat_train
@@ -621,11 +617,15 @@ class HeartBeat(HasTraits):
             rand_adj = np.random.rand()/1000
             self.b_label.label_position = (-20+rand_adj,20+rand_adj)
             self.b_label.request_redraw()
-            self.hand_labeled = True
             #set hand labeled in physiodata
-            self.physiodata.hand_labeled[self.id] = 1
+            self.set_hand_labeled(True)
             self.plot.request_redraw()
             self.point_updated=True
+
+    def set_hand_labeled(self, labeled=True):
+        if self.id is not None and self.id > -1:
+            self.hand_labeled = labeled
+            self.physiodata.hand_labeled[self.id] = 1 if labeled else 0
 
     def _dzdt_plot_default(self):
         """
@@ -750,8 +750,7 @@ class HeartBeat(HasTraits):
         if self.plotdata is not None:
             self.plotdata.set_data('point_values', self._get_plt_point_values())
             self.plotdata.set_data('point_times', self._get_point_times())
-            self.hand_labeled = True
-            self.physiodata.hand_labeled[self.id] = 1
+            self.set_hand_labeled(True)
             self.plot.request_redraw()
             self.point_updated=True
 

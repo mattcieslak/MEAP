@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class MovingEnsembler(HasTraits):
     physiodata = Instance(PhysioData)
     bpoint_classifier=Instance(BPointClassifier)
-    
+
     # weighting traits
     mea_window_type = DelegatesTo("physiodata")
     mea_func_name = DelegatesTo("physiodata")
@@ -41,10 +41,10 @@ class MovingEnsembler(HasTraits):
     mea_weights = DelegatesTo("physiodata")
     mea_smooth_hr = DelegatesTo("physiodata")
     dirty = Bool(False,desc=("When a weighting parameter is changed"
-        " but the new weighting hasn't been applied to the mea beats")    
+        " but the new weighting hasn't been applied to the mea beats")
     )
     b_apply_weighting = Button(label="Apply Moving Weighting")
-    
+
     never = Bool(False)
 
     # Traits for the imageplot widget
@@ -84,14 +84,14 @@ class MovingEnsembler(HasTraits):
     # graphics items
     plot = Instance(VPlotContainer,transient=True)
     physio_signals_to_plot = Set(["hr","map","pep","sv","tpr","co"])
-    physio_signals = List(Instance(MEAPTimeseries))    
-    
+    physio_signals = List(Instance(MEAPTimeseries))
+
     # tools for editing point markings
     b_train_clf = Button(label="Create training set",transient=True)
     saved_since_train = Bool(False)
-    
+
     automark = Bool(True) # For debugging
-    
+
     def __init__(self,**traits):
         super(MovingEnsembler,self).__init__(**traits)
 
@@ -111,7 +111,7 @@ class MovingEnsembler(HasTraits):
                 mea_matname = "mea_%s_matrix" % signal
                 mea_matrix = getattr(self.physiodata, mea_matname)
                 needs_empty = False # Does this signal need a new wmpty matrix?
-    
+
                 if not mea_matrix.ndim == 2:
                     needs_empty = True
                 elif not mat_matrix.shape[0] == mea_matrix.shape[0] or \
@@ -130,7 +130,7 @@ class MovingEnsembler(HasTraits):
             logger.info("HR array mismatch with data matrices, fixing...")
             #self.mea_beat_train.hr = np.zeros_like(self.physiodata.peak_times)
             stored_mea_mats_ok = False
-            
+
         if not stored_mea_mats_ok:
             if self.automark:
                 self.apply_weighting("auto init")
@@ -138,16 +138,16 @@ class MovingEnsembler(HasTraits):
                 logger.info("Not automatically marking points")
         else:
             self.dirty = False
-            
+
         self._init_bpoint_clf_name()
-        
+
     @on_trait_change("bpoint_classifier_file")
     def _file_updated(self):
         logger.info("Checking for new bpoint classifier %s", self.bpoint_classifier_file)
         if os.path.exists(self.bpoint_classifier_file):
             self.bpoint_classifier = self._bpoint_classifier_default()
-                
-        
+
+
     def _init_bpoint_clf_name(self):
         """Loops over various possible directories to find where to write
         the bpoint_classifier file"""
@@ -155,23 +155,23 @@ class MovingEnsembler(HasTraits):
             dirname, basename = os.path.split(fname)
             if not os.path.exists(dirname):
                 return False
-            
+
             if basename.endswith("mea.mat"):
                 _fname = basename[:-7] + "bpoint_classifier"
             elif basename.endswith("acq") or basename.endswith("mat"):
                 _fname = basename[:-3] + "bpoint_classifier"
             else:
                 _fname = basename + ".bpoint_classifier"
-                
+
             return os.path.join(dirname,_fname)
-        
+
         if hasattr(self.physiodata,"file_location") and ok_write(self.physiodata.file_location):
             self.bpoint_classifier_file = ok_write(self.physiodata.file_location)
         elif hasattr(self.physiodata,"original_file") and ok_write(self.physiodata.original_file):
             self.bpoint_classifier_file = ok_write(self.physiodata.original_file)
         else:
             self.bpoint_classifier_file = os.path.join(os.getcwd(),"meap.bpoint_classifier")
-        
+
     def __get_matplot_data(self):
         signal = self.image_plot_signal
         mat = getattr(self.physiodata, signal + "_matrix")
@@ -193,11 +193,11 @@ class MovingEnsembler(HasTraits):
         return plot
 
     def update_image_plot(self):
-        logger.info("updating image plot") 
+        logger.info("updating image plot")
         if self.image_plotdata is None: return
         self.image_plotdata.set_data("imagedata", self.__get_matplot_data())
         self.image_plot.request_redraw()
-    
+
     def _time_window_moving_ensemble(self):
         # Parameters for this run
         raw_hr = self.mea_beat_train.get_heartrate()
@@ -210,8 +210,8 @@ class MovingEnsembler(HasTraits):
         n_beats = len(peak_times)
         n_beats_averaged = np.zeros(n_beats)
         self.physiodata.mea_hr = np.zeros(n_beats)
-        
-        # If the window secs is set to 0 use the 
+
+        # If the window secs is set to 0 use the
         if window_secs == 0.:
             # Apply the moving ensemble weighting
             for signal in self.physiodata.contents:
@@ -237,7 +237,7 @@ class MovingEnsembler(HasTraits):
             else:
                 raise ValueError("Impossible")
 
-            contained_beats = np.flatnonzero( 
+            contained_beats = np.flatnonzero(
                     (peak_times > start_time) & (peak_times < end_time))
             n_beats_averaged[beatnum] = len(contained_beats)
             matrix_slice = slice(contained_beats[0],contained_beats[-1],None)
@@ -296,7 +296,7 @@ class MovingEnsembler(HasTraits):
                                                     self.physiodata.systolic_matrix)
                 self.mea_beat_train.diastolic_matrix = self.weight(
                                                     self.physiodata.diastolic_matrix)
-    
+
     def apply_weighting(self,name):
         logger.info( 'meap param "%s" changed' % name)
         t0 = time.time()
@@ -306,15 +306,15 @@ class MovingEnsembler(HasTraits):
             self._time_window_moving_ensemble()
         logger.info("Updating MEA Beat train beats and plots")
         self.mea_beat_train.update_signals()
-        
+
         # Use the MEA heart beats to calculate physio state
-        self.physiodata.hand_labeled = np.zeros_like(self.physiodata.peak_indices)
+        #self.physiodata.hand_labeled = np.zeros_like(self.physiodata.peak_indices)
         self.mea_beat_train.mark_points(show_progressbar=True)
         t1 = time.time()
         logger.info("Marked points for mea_beat_train in %.2f seconds", t1-t0)
         self.calculate_physio()
         self.dirty=False
-        
+
     def _fix_garbled_mea_mats(self):
         if self.mea_window_type == "Beats":
             self._n_neighbor_moving_ensemble()
@@ -323,7 +323,7 @@ class MovingEnsembler(HasTraits):
 
     def _b_apply_weighting_fired(self):
         self.apply_weighting("button_request")
-        
+
     # Functions involving b-point classification
     def _bpoint_classifier_default(self):
         if os.path.exists(self.bpoint_classifier_file):
@@ -348,12 +348,12 @@ class MovingEnsembler(HasTraits):
                 message="Classifying...")
         progress.open()
         for i, beat in enumerate(self.mea_beat_train.beats):
-            if not beat.hand_labeled: 
+            if not beat.hand_labeled:
                 beat.b.set_index(int(self.bpoint_classifier.estimate_bpoint(beat.id)))
             (cont,skip) = progress.update(i)
         (cont,skip) = progress.update(i+1)
         self.calculate_physio()
-        
+
     def _b_mark_it_zero_fired(self):
         progress = ProgressDialog(title="B-Point Classification", min=0,
                 max = len(self.physiodata.peak_times), show_time=True,
@@ -363,7 +363,7 @@ class MovingEnsembler(HasTraits):
             if beat.hand_labeled: continue
             r_ind = self.physiodata.r_indices[i]
             c_ind = self.physiodata.c_indices[i]
-            
+
             beat.b.set_index(r_ind + zero_crossing_index(beat.dzdt_signal[r_ind:c_ind]))
             (cont,skip) = progress.update(i)
         (cont,skip) = progress.update(i+1)
@@ -371,7 +371,7 @@ class MovingEnsembler(HasTraits):
 
     def _b_clear_custom_markings_fired(self):
         for beat in self.mea_beat_train.beats:
-            beat.hand_marked = False
+            beat.set_hand_labeled(False)
         self.update_plots()
 
     def _global_ensemble_default(self):
@@ -394,7 +394,7 @@ class MovingEnsembler(HasTraits):
         self.interactive = True
         # Create plotting components
         pdata = dict([(sig,getattr(self.mea_beat_train,sig)) for sig in \
-                self.physio_signals_to_plot | set(("resp_corrected_sv", 
+                self.physio_signals_to_plot | set(("resp_corrected_sv",
                     "resp_corrected_co", "resp_corrected_tpr"))])
 
         self.plotdata = ArrayPlotData(
@@ -403,7 +403,7 @@ class MovingEnsembler(HasTraits):
             mea_hr = self.physiodata.mea_hr, # Plot the mea_hr instead of hr
             **pdata
         )
-        
+
         physio_signals = []
         container = VPlotContainer(
             resizable="hv", bgcolor="lightgray", fill_padding=True, padding=10
@@ -415,7 +415,7 @@ class MovingEnsembler(HasTraits):
                                 )
                 )
             container.add(physio_signals[-1].plot)
-        container.padding_top =10 
+        container.padding_top =10
         self.physio_signals = physio_signals
 
         return container
@@ -434,7 +434,7 @@ class MovingEnsembler(HasTraits):
 
     def update_plots(self):
         if self.interactive:
-            # update the meap physio traces            
+            # update the meap physio traces
             self.plotdata.set_data("map",self.physiodata.map)
             self.plotdata.set_data("co",self.physiodata.co)
             self.plotdata.set_data("resp_corrected_co",self.physiodata.resp_corrected_co)
@@ -475,8 +475,8 @@ class MovingEnsembler(HasTraits):
         selected_beats = np.random.choice(nbeats,size=nsamps,replace=False)
         self.selected_beats.set_beats([self.mea_beat_train.beats[n] for n in selected_beats])
 
-    
-    @on_trait_change( 
+
+    @on_trait_change(
        ("physiodata.mea_window_type, physiodata.mea_func_name, "
         "physiodata.mea_window_secs, "
         "physiodata.mea_exp_power, physiodata.mea_weight_direction, "
@@ -496,8 +496,8 @@ class MovingEnsembler(HasTraits):
     def _b_save_fired(self):
         if self.bpoint_classifier.save():
             self.saved_since_train = True
-            
-        
+
+
     diagnostic_plots = VGroup(
         HGroup(
             Item("image_plot_signal", label = "Signal"),
@@ -529,16 +529,16 @@ class MovingEnsembler(HasTraits):
                       )
                 )
         ),
-        resizable=True, 
+        resizable=True,
         win_title="Physio Timeseries",
         width=800, height=700,
         buttons = [ParentButton,OKButton,CancelButton]
     )
-    
+
 
     training_view = MEAPView(
         VGroup(
-        HGroup("n_samples", 
+        HGroup("n_samples",
             Item("saved_since_train",
                  label="Saved since training?",enabled_when='never'),
             Item("b_save",show_label=False),

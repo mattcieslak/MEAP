@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 """
 Classification works by converting each beat into a matrix
 where each row is centered on a millisecond between the r
-peak and c peak. The center time is padded by 
+peak and c peak. The center time is padded by
 """
 
 def mat_extract(matrix, start_inds, end_inds):
@@ -38,7 +38,7 @@ class BPointClassifier(HasTraits):
             "bpoint_classifier_use_bpoint_prior")
     include_derivative = DelegatesTo("physiodata",
             "bpoint_classifier_include_derivative")
-    # Config-independent traits    
+    # Config-independent traits
     bpoint_classifier_file = DelegatesTo('physiodata')
     classifier = Instance(AdaBoostRegressor)
     bpoint_prior = Property(Array)
@@ -51,7 +51,7 @@ class BPointClassifier(HasTraits):
         # empty adaboost regressor
         if self.classifier is None:
             if os.path.exists(self.physiodata.bpoint_classifier_file):
-                logger.info("loading pre-existing classifier %s", 
+                logger.info("loading pre-existing classifier %s",
                         self.bpoint_classifier_file)
                 try:
                     self.classifier = joblib.load(self.bpoint_classifier_file)
@@ -71,7 +71,7 @@ class BPointClassifier(HasTraits):
             self.trained = True
 
     def make_training_set(self):
-        marked_samples = np.flatnonzero(self.physiodata.hand_labeled) 
+        marked_samples = np.flatnonzero(self.physiodata.hand_labeled)
         samples = []
         labels = []
         for beatnum in marked_samples:
@@ -84,7 +84,7 @@ class BPointClassifier(HasTraits):
             labels.append(np.arange(r,c) - b)
 
         return samples, labels
-        
+
     def train(self):
         classifier = self.classifier
         if self.trained:
@@ -95,20 +95,22 @@ class BPointClassifier(HasTraits):
         classifier.fit(np.row_stack(samples), np.concatenate(labels))
         self.trained = True
         logger.info("Training done.")
-    
+
     def beat_to_time_feature_matrix(self, beatnum):
         """
         Turns a heartbeat into a matrix. There is one row for each millisecond between
         the r point and the c point. Each row represents the time corresponding to
-        its center.  That timepoint is padded by self.pre_point_msec and 
-        self.post_point_msec. If self.include_derivative, the derivative is appended to 
-        the end of each row 
+        its center.  That timepoint is padded by self.pre_point_msec and
+        self.post_point_msec. If self.include_derivative, the derivative is appended to
+        the end of each row
         """
         include_derivative=self.include_derivative
         pre_msec = self.pre_point_msec
         post_msec = self.post_point_msec
         r_ind = self.physiodata.r_indices[beatnum]
         c_ind = self.physiodata.c_indices[beatnum]
+        if r_ind == c_ind:
+            raise ValueError("Invalid r and c point for beat %d" % beatnum)
         _sig = self.physiodata.mea_dzdt_matrix[beatnum][:]
         # The targets are msec from the b-point
         if include_derivative:
@@ -120,20 +122,22 @@ class BPointClassifier(HasTraits):
             signal = [_sig[(ind-pre_msec):(ind+post_msec+1)] for ind \
                                                     in xrange(r_ind,c_ind)]
         return np.row_stack(signal)
-    
+
     def beat_obj_to_time_feature_matrix(self, beat):
         """
         Turns a heartbeat into a matrix. There is one row for each millisecond between
         the r point and the c point. Each row represents the time corresponding to
-        its center.  That timepoint is padded by self.pre_point_msec and 
-        self.post_point_msec. If self.include_derivative, the derivative is appended to 
-        the end of each row 
+        its center.  That timepoint is padded by self.pre_point_msec and
+        self.post_point_msec. If self.include_derivative, the derivative is appended to
+        the end of each row
         """
         include_derivative=self.include_derivative
         pre_msec = self.pre_point_msec
         post_msec = self.post_point_msec
         r_ind = beat.r.index
         c_ind = beat.c.index
+        if r_ind == c_ind:
+            raise ValueError("Invalid r and c point for beat %d" % beatnum)
         _sig = beat.dzdt_signal
         # The targets are msec from the b-point
         if include_derivative:
@@ -156,7 +160,7 @@ class BPointClassifier(HasTraits):
         elif beat_obj is not None:
             features = self.beat_obj_to_time_feature_matrix(beat_obj)
             r_index = beat_obj.r.index
-            
+
         # Have the regressor predict the distance from the b-point for all candidates
         preds = np.abs(self.classifier.predict(features))
         multi_estimates = preds==preds.min()
@@ -170,7 +174,7 @@ class BPointClassifier(HasTraits):
 
     def _get_bpoint_prior(self):
         return self.physiodata.b_indices[self.physiodata.hand_labeled > 0]
-    
+
     def save(self):
         outpath =  self.physiodata.bpoint_classifier_file
         if not os.path.exists(outpath):
@@ -196,15 +200,15 @@ class BPointClassifier(HasTraits):
         errors = []
         for i in  range(k):
             logger.info("Fold: %d", i)
-            
+
             training_samples =  [ s for s,c in zip(samples,chunks) if  c != i ]
             training_labels = [ l for l,c in zip(labels,chunks) if c != i ]
             testing_samples = [ s for s,c in zip(samples,chunks) if  c == i ]
             testing_labels = [ l for l,c in zip(labels,chunks) if c == i ]
-            logger.info("Training on %d samples, testing %d left out samples", 
+            logger.info("Training on %d samples, testing %d left out samples",
                         len(training_samples),len(testing_samples))
 
-            classifier.fit(np.row_stack(training_samples), 
+            classifier.fit(np.row_stack(training_samples),
                                 np.concatenate(training_labels))
 
             for testing_sample, testing_label in zip(testing_samples,testing_labels):
@@ -220,7 +224,7 @@ class BPointClassifier(HasTraits):
                 logger.info("Sample %d error: %.2f msec",i, errors[-1])
             (cont,skip) = progress.update(i)
         (cont,skip) = progress.update(i+1)
-            
+
         errors = np.array(errors)
         self.physiodata.bpoint_classifier_cv_error[self.physiodata.hand_labeled > 0] = errors
         messagebox(

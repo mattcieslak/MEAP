@@ -137,10 +137,11 @@ class TimePoint(HasTraits):
     needs_attention = Bool(False)
     physiodata = Instance("meap.io.PhysioData")
 
+
     def __init__(self,**traits):
         super(TimePoint,self).__init__(**traits)
         self.physiodata = self.beat.physiodata
-        self.index_array = getattr(self.physiodata, self.name+"_indices", None)
+        index_array = getattr(self.physiodata, self.name+"_indices", None)
 
         # For fast time-to-index conversion
         if self.applies_to in ("systolic", "diastolic", "bp"):
@@ -151,7 +152,7 @@ class TimePoint(HasTraits):
         # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
             try:
-                self.set_index(self.index_array[self.beat.id])
+                self.set_index(index_array[self.beat.id])
             except Exception, e:
                 logger.warn("Error setting %s:\n%s",self.name, e)
 
@@ -217,8 +218,8 @@ class TimePoint(HasTraits):
                         bnum, self.name)
             unmarked_point.needs_attention = True
         unmarked_point.set_index(t_ind)
-        index_array = getattr(unmarked_beat.physiodata, self.name + "_indices")
-        #assert index_array[unmarked_beat.id] == t_ind
+        index_array = getattr(self.physiodata, self.name+"_indices", None)
+        assert index_array[unmarked_beat.id] == t_ind
         return True
 
     def set_time(self,time):
@@ -233,12 +234,12 @@ class TimePoint(HasTraits):
         If all we have is a time, adjust the index and value to match
         """
         ts = getattr(self.beat, self.applies_to+"_signal")
+        index_array = getattr(self.physiodata, self.name+"_indices", None)
         self.time = float(index) - self.offset
         self.index = index
         self.value = ts[index]
-        if self.index_array is not None and self.beat.id > -1:
-            #index_array = getattr(self.physiodata, self.name + "_indices")
-            self.index_array[self.beat.id] = self.index
+        if index_array is not None and self.beat.id > -1:
+            index_array[self.beat.id] = self.index
 
 
 
