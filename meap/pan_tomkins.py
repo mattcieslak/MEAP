@@ -479,6 +479,14 @@ class PanTomkinsDetector(HasTraits):
         
         return plot
     
+    # TODO: have this update other variables in physiodata: hand_labeled, mea, etc 
+    def _delete_peaks(self, peaks_to_delete):
+        pass
+    
+    def _add_peaks(self, peaks_to_add):
+        pass
+    # End TODO
+    
     def _change_peaks(self):
         if self.dirty:
             messagebox("You shouldn't edit peaks until you've run Detect QRS")

@@ -144,30 +144,31 @@ class GroupRegisterDZDT(HasTraits):
 
     def _ptool_t_selection_changed(self):
         if self.currently_editing == "none": return
-        self.currently_editing = "none"
         self.karcher_plot.title = ""
-        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
-        self.physiodata.pep = self.point_plotdata.get_data("pep")
-        self.physiodata.x_indices = self.dzdt_warping_functions[:,
-                                                    self.ptool_index_in_warps]
-        self.physiodata.b_indices = self.dzdt_warping_functions[:,
-                                                    self.ptool_index_in_warps]
         if self.currently_editing == "b":
             orig_time = self.physiodata.ens_avg_b_time
             self.physiodata.ens_avg_b_time = self.ptool_t
+            self.physiodata.b_indices = self.dzdt_warping_functions[:,
+                                            self.ptool_index_in_warps].copy()
             logger.info("Changed B from %d to %d", orig_time,
                         self.physiodata.ens_avg_b_time)
         elif self.currently_editing == "x":
             orig_time = self.physiodata.ens_avg_x_time
             self.physiodata.ens_avg_x_time = self.ptool_t
+            self.physiodata.x_indices = self.dzdt_warping_functions[:,
+                                            self.ptool_index_in_warps].copy()
             logger.info("Changed X from %d to %d", orig_time,
                         self.physiodata.ens_avg_x_time)
+        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
+        self.physiodata.pep = self.point_plotdata.get_data("pep")
+        self.currently_editing = "none"
 
     def _b_update_b_point_fired(self):
         if not self.all_beats_registered:
             messagebox("Click Warp all first.")
             return
         self.currently_editing = "b"
+        logger.info("Editing B point")
         self.karcher_plot.title = "Select B Point"
 
     def _b_update_x_point_fired(self):
@@ -175,6 +176,7 @@ class GroupRegisterDZDT(HasTraits):
             messagebox("Click Warp all first.")
             return
         self.currently_editing = "x"
+        logger.info("Editing X point")
         self.karcher_plot.title = "Select X Point"
 
     def _karcher_plot_default(self):

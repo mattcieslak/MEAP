@@ -128,7 +128,6 @@ class MovingEnsembler(HasTraits):
 
         if not np.all(self.physiodata.hr.shape[0] == np.array(mat_rows)):
             logger.info("HR array mismatch with data matrices, fixing...")
-            #self.mea_beat_train.hr = np.zeros_like(self.physiodata.peak_times)
             stored_mea_mats_ok = False
 
         if not stored_mea_mats_ok:
@@ -299,6 +298,8 @@ class MovingEnsembler(HasTraits):
 
     def apply_weighting(self,name):
         logger.info( 'meap param "%s" changed' % name)
+        # TODO: make this unnecessary by updating hand_labeled from pan_tomkins
+        self.physiodata.hand_labeled = np.zeros_like(self.physiodata.peak_indices)
         t0 = time.time()
         if self.mea_window_type == "Beats":
             self._n_neighbor_moving_ensemble()
@@ -308,7 +309,6 @@ class MovingEnsembler(HasTraits):
         self.mea_beat_train.update_signals()
 
         # Use the MEA heart beats to calculate physio state
-        #self.physiodata.hand_labeled = np.zeros_like(self.physiodata.peak_indices)
         self.mea_beat_train.mark_points(show_progressbar=True)
         t1 = time.time()
         logger.info("Marked points for mea_beat_train in %.2f seconds", t1-t0)

@@ -477,6 +477,4 @@ class MEABeatTrain(BeatTrain):
         get its signals reset to be up to date with the physiodata object
         """
         logger.info("Resetting signal data in MEA beats")
-        for beat in self.beats:
-            beat._set_default_signals()
-            beat.update_plot()
+        self.set_beats(self._beats_default())
