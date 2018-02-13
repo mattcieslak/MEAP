@@ -106,6 +106,7 @@ class GroupRegisterDZDT(HasTraits):
         if self.dzdt_warping_functions.shape[0] == \
                                 self.original_functions.shape[0]:
             self.all_beats_registered = True
+            self._forward_warp_beats()
 
     def _global_ensemble_default(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
@@ -242,10 +243,9 @@ class GroupRegisterDZDT(HasTraits):
 
 
         if self.all_beats_registered:
-            self._forward_warp_beats()
-            image_data = self.registered_functions
+            image_data = self.registered_functions.copy()
         else:
-            image_data = self.original_functions
+            image_data = self.original_functions.copy()
 
         # Create a plot of all the functions registered or not
         self.all_registration_plotdata = ArrayPlotData(
@@ -306,6 +306,10 @@ class GroupRegisterDZDT(HasTraits):
                 self.sample_times, func, s=0.05)(self.sample_times) \
                 for func in self.original_functions]
             )
+        if self.interactive:
+            self.all_registration_plotdata.set_data("image_data",
+                                                    self.original_functions.copy())
+            self.all_plot.request_redraw()
 
     def _b_calculate_karcher_mean_fired(self):
         self.calculate_karcher_mean()
@@ -333,7 +337,7 @@ class GroupRegisterDZDT(HasTraits):
 
     def _b_align_all_beats_fired(self):
         self.align_all_beats()
-
+        
     def align_all_beats(self):
         if not self.karcher_mean_calculated:
             logger.warn("Calculate Karcher mean first")
@@ -351,7 +355,9 @@ class GroupRegisterDZDT(HasTraits):
         srvf_functions = (fy / np.sqrt(np.abs(fy) + eps)).T
 
         gam = np.zeros(self.original_functions.shape, dtype=np.float)
-        aligned_functions = np.zeros_like(self.original_functions)
+        aligned_functions = self.original_functions.copy()
+        logger.info("aligned_functions %d", id(aligned_functions))
+        logger.info("self.original_functions %d", id(self.original_functions))
 
         t = self.sample_times
         for k in range(self.n_functions):
@@ -365,17 +371,16 @@ class GroupRegisterDZDT(HasTraits):
             if self.interactive:
 
                 # Update the image plot
-                img_data = self.all_registration_plotdata.get_data("image_data")
-                img_data[k] = aligned_functions[k]
-                self.all_registration_plotdata.set_data("image_data", img_data)
+                self.all_registration_plotdata.set_data("image_data", aligned_functions)
 
                 # Update the registration plot
                 self.single_registration_plotdata.set_data("registered_func",
                                                         aligned_functions[k])
+                self.single_plot.request_redraw()
 
                 (cont,skip) = progress.update(k)
 
-        self.registered_functions = aligned_functions
+        self.registered_functions = aligned_functions.copy()
 
         self.dzdt_warping_functions = gam * (
                                         self.srvf_t_max - self.srvf_t_min) + \
@@ -385,6 +390,7 @@ class GroupRegisterDZDT(HasTraits):
             progress.update(k+1)
 
         self.all_beats_registered = True
+    
 
     def _point_plots_default(self):
         """

@@ -154,6 +154,9 @@ class HeartBeat(HasTraits):
     doppler_component = Instance(Component,transient=True)
     doppler_point_picker = Instance(PointDraggingTool,transient=True)
 
+    # for dZ/dt registration
+    registration_plot = Instance(Plot,transient=True)
+    
     # Point classifier params
     apply_ecg_smoothing = Bool(True)
     ecg_smoothing_window_len = Int(40)
@@ -627,6 +630,71 @@ class HeartBeat(HasTraits):
             self.hand_labeled = labeled
             self.physiodata.hand_labeled[self.id] = 1 if labeled else 0
 
+    def _registration_plot_default(self):
+        """
+        Instead of defining these in __init__, only
+        construct the plots when a ui is requested
+        """
+        karcher_mean = self.physiodata.dzdt_karcher_mean
+        karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
+        karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
+        
+        # Where should we sample warping vectors?
+        num_arrows = len(karcher_time) // 10
+        karcher_indices = np.arange(num_arrows) * 10
+        karcher_arrow_times = karcher_time[karcher_indices]
+        karcher_values = self.physiodata.dzdt_karcher_mean[karcher_indices]
+        
+        # Get the reverse warp into original dzdt times
+        if self.id is not None and self.id > -1:
+            full_warp = self.physiodata.dzdt_warping_functions[self.id] \
+                - self.physiodata.dzdt_pre_peak
+        else:
+            full_warp = karcher_time - self.physiodata.dzdt_pre_peak
+            
+        # warp the template_beat to this beat
+        
+        warp = full_warp[karcher_indices]
+        dzdt_indices = np.floor( warp + self.physiodata.dzdt_pre_peak).astype(np.int)
+        dzdt_arrow_times = self.dzdt_time[dzdt_indices]        
+        dzdt_values = self.dzdt_signal[dzdt_indices]
+        
+        vector_x = karcher_arrow_times
+        vector_y = karcher_values
+        
+        vector_vx = warp - karcher_arrow_times
+        vector_vy = np.zeros_like(vector_vx)
+        
+        vector = np.column_stack([vector_vx,vector_vy])
+        
+        plotdata = ArrayPlotData(
+            karcher_mean = self.physiodata.dzdt_karcher_mean,
+            karcher_time = karcher_time,
+            dzdt = self.dzdt_signal,
+            dzdt_time = self.dzdt_time,
+            vector_x = vector_x,
+            vector_y = vector_y,
+            warped_time = full_warp,
+            vector=vector
+        )
+        
+        # Create the plots and tools/overlays
+        main_plot = Plot(plotdata,title="Registration",padding=20)
+        dzdt_line = main_plot.plot(("dzdt_time","dzdt"), line_width=2,
+                color=colors['dzdt'])[0]
+        karcher_line = main_plot.plot(("karcher_time","karcher_mean"), line_width=2,
+                color='lightblue')[0]
+        karcher_warped = main_plot.plot(("warped_time","karcher_mean"), line_width=2,
+                color='blue')[0]
+        arrows = main_plot.quiverplot(("vector_x", "vector_y", "vector"))
+        
+        # Take care of the global ensemble
+        if self.id is None or self.id < 0:
+            return main_plot
+        
+        # Create containers
+        return main_plot
+    
     def _dzdt_plot_default(self):
         """
         Instead of defining these in __init__, only
@@ -880,6 +948,7 @@ class HeartBeat(HasTraits):
         self.on_trait_event(self._point_updated,"point_picker.point_edited")
         plot.padding =12
         return plot
+    
 
     def default_traits_view(self):
         """
@@ -909,6 +978,10 @@ class HeartBeat(HasTraits):
                     Item("doppler_plot",editor=ComponentEditor(), show_label=False),
                     label="Doppler")
                 )
+            elif widget == "Registration":
+                panels.append(
+                    Item("registration_plot",editor=ComponentEditor(), 
+                         label="Registration"))
 
         return MEAPView(
             HSplit(

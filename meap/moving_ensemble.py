@@ -456,11 +456,14 @@ class MovingEnsembler(HasTraits):
             selection = np.flatnonzero(( self.physiodata.peak_times >= new[0] ) \
                                      & ( self.physiodata.peak_times <= new[1] ))
             logger.info("Beats selected on %s:\n%s", obj.signal, str(selection))
+            if not self.edit_listening:
+                self.edit_listening = True
+                self.on_trait_change(self.update_labeled,
+                        "mea_beat_train.beats.point_updated")
             beat_viewer = MEABeatTrain(physiodata=self.physiodata)
             beats = [self.mea_beat_train.beats[n] for n in selection]
             beat_viewer.set_beats(beats)
             beat_viewer.edit_traits(kind="livemodal")
-
     def _selected_beats_default(self):
         return MEABeatTrain(physiodata=self.physiodata)
 

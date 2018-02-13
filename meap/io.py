@@ -206,15 +206,17 @@ class PhysioData(HasTraits):
     Contains the parameters needed to run a MEAP session
     """
 
-    available_widgets = List
-    def __init__(self,**traits):
-        super(PhysioData,self).__init__(**traits)
+    available_widgets = Property(List)
+    def _get_available_widgets(self):
         available_panels = ["Annotation"]
         if "dzdt" in self.contents and "z0" in self.contents:
             available_panels.append("ICG B Point")
         if "doppler" in self.contents:
             available_panels.append("Doppler")
-        self.available_widgets = available_panels
+        if self.dzdt_warping_functions.size > 0:
+            available_panels.append("Registration")
+        
+        return available_panels
 
 
     contents = Property(Set)
