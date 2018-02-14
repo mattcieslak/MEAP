@@ -20,6 +20,7 @@ class MEAPGreeter(HasTraits):
     preproc = Button("Preprocess")
     analyze = Button("Analyze")
     configure = Button("Configure MEAP")
+    register_dZdt = Button("Batch Register dZ/dt")    
     
     def _preproc_fired(self):
         from meap.preprocessing import PreprocessingPipeline
@@ -31,6 +32,11 @@ class MEAPGreeter(HasTraits):
         pe = PhysioExperiment()
         pe.configure_traits()
         
+    def _register_dZdt_fired(self):
+        from meap.batch_warp_dzdt import BatchGroupRegisterDZDT
+        batch = BatchGroupRegisterDZDT()
+        batch.configure_traits()
+        
     def _configure_fired(self):
         print "Not implemented yet!"
         
@@ -38,6 +44,7 @@ class MEAPGreeter(HasTraits):
         VGroup(
             Item("preproc"),
             Item("analyze"),
+            Item("register_dZdt"),
             Item("configure"),
             show_labels=False
         )
