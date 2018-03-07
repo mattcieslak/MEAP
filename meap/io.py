@@ -1,5 +1,5 @@
 from meap import (fail, __version__, ENSEMBLE_SIGNALS,
-                  SMOOTHING_WINDOWS, messagebox)
+                  SMOOTHING_WINDOWS, messagebox, has_ui)
 import os
 import tempfile
 
@@ -7,7 +7,13 @@ from traits.api import (HasTraits, CStr, Array, CFloat, CInt,Str,
                         Bool, Enum, Instance, File,Property,
                         Range,Int, List, PrototypedFrom,cached_property,
                         CBool, CArray, Set, CList)
-from traitsui.api import Item, Group
+if has_ui:
+    from traitsui.api import Item, Group
+else:
+    def Item(*args, **kwargs):
+        pass
+    def Group(*args, **kwargs):
+        pass
 
 from scipy.io.matlab import savemat, loadmat
 import numpy as np
@@ -848,7 +854,8 @@ def load_from_disk(matfile, config=None,verbose=False):
     """
     Loads a .mea file from disk
     """
-    if not os.path.exists(matfile):
+    
+    if matfile is None or not os.path.exists(matfile):
         fail("No file exists at %s" % matfile )
     #logger.info("Loading " + matfile)
     m = loadmat(matfile)

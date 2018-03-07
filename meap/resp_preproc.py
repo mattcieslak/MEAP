@@ -76,26 +76,26 @@ class RespirationProcessor(HasTraits):
         z0_inc = "z0" in self.physiodata.contents
         if z0_inc and resp_inc:
             self.state = "z0_resp"
-            messagebox("Using both respiration belt and ICG")
+            #messagebox("Using both respiration belt and ICG")
             z0_signal = self.physiodata.z0_data
             dzdt_signal = self.physiodata.dzdt_data
             resp_signal = self.physiodata.respiration_data
         elif resp_inc and not z0_inc:
             self.state = "resp"
-            messagebox("Only respiration belt data will be used.")
+            #messagebox("Only respiration belt data will be used.")
             resp_signal = self.physiodata.resp_data
             z0_signal = None
             dzdt_signal = None
         elif z0_inc and not resp_inc:
             self.state = "z0"
-            messagebox("Using only z0 channel to estimate respiration")
+            #messagebox("Using only z0 channel to estimate respiration")
             resp_signal = self.physiodata.z0_data
             z0_signal = self.physiodata.z0_data
             dzdt_signal = self.physiodata.dzdt_data
             self.resp_polort = 1
         else:
             self.state = "unusable"
-            messagebox("No respiration belt or z0 channels found")
+            #messagebox("No respiration belt or z0 channels found")
 
         # Establish  the maximum shared length of resp_inhale_begin_values
         signals = [sig for sig in (resp_signal, z0_signal,dzdt_signal) if \

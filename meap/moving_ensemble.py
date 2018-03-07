@@ -309,7 +309,7 @@ class MovingEnsembler(HasTraits):
         
         # Use the MEA heart beats to calculate physio state
         self.physiodata.hand_labeled = np.zeros_like(self.physiodata.peak_indices)
-        self.mea_beat_train.mark_points(show_progressbar=True)
+        self.mea_beat_train.mark_points(show_progressbar=False)
         t1 = time.time()
         logger.info("Marked points for mea_beat_train in %.2f seconds", t1-t0)
         self.calculate_physio()

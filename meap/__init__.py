@@ -3,9 +3,15 @@ import numpy as np
 import sys
 import logging
 import cPickle as pickle
-from traitsui.api import View
+
+has_ui = True
+try:
+    from traitsui.api import View
+    from traitsui.message import Message
+except Exception, e:
+    has_ui = False
+
 from traits.api import Str
-from traitsui.message import Message
 
 # Begin a logging output
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -70,34 +76,52 @@ ENSEMBLE_SIGNALS = set((
     "doppler"
     ))
 
-from pyface.image_resource import ImageResource
-icon = ImageResource(
-    os.path.join(_ROOT,"resources/logo512x512.png"))
-meap_splash = ImageResource(os.path.join(_ROOT, "resources/meap.png"))
 
-class MEAPView(View):
-    win_title=Str
-    resizable=True
-    def __init__(self, *args, **traits):
-        super(MEAPView,self).__init__(*args, **traits)
-        self.title = "MEAP [ v%s ]: "%__version__ + self.win_title
-        self.icon = icon
+if has_ui:
+    from pyface.image_resource import ImageResource
+    icon = ImageResource(
+        os.path.join(_ROOT,"resources/logo512x512.png"))
+    meap_splash = ImageResource(os.path.join(_ROOT, "resources/meap.png"))
+    class MEAPView(View):
+        win_title=Str
+        resizable=True
+        def __init__(self, *args, **traits):
+            super(MEAPView,self).__init__(*args, **traits)
+            self.title = "MEAP [ v%s ]: "%__version__ + self.win_title
+            self.icon = icon
+else:
+    icon=None
+    meap_splash = None
+    def MEAPView(object):
+        def __init__(self,*args, **kwargs):
+            pass
+        def edit_traits(self,*args, **kwargs):
+            pass
 
-def messagebox(msg,title="Message",buttons=["OK"]):
-    m = Message(message=msg)
-    ui = m.edit_traits(
-         view = MEAPView(
-                        ["message~", "|<>"], title=title,buttons=buttons,kind="modal"
-         )
-    )
+if has_ui:
+    from traitsui.api import Action
+    ParentButton = Action(name="Back",
+                              action="show_parent",
+                              image=icon
+                              )
+    def messagebox(msg,title="Message",buttons=["OK"]):
+        m = Message(message=msg)
+        ui = m.edit_traits(
+             view = MEAPView(
+                   ["message~", "|<>"], title=title,
+                   buttons=buttons,kind="modal")
+        )
+else:
+    class Action(object):
+        def __init__(self, *args, **kwargs):
+            pass
+    ParentButton = None
+    def messagebox(msg, title="Message", buttons=["OK"]):
+        print msg
 
 
 
-from traitsui.api import Action
-ParentButton = Action(name="Back",
-                          action="show_parent",
-                          image=icon
-                          )
+
 
 def fail(msg,interactive=False):
     logger.critical(msg)
