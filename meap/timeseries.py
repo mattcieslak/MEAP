@@ -1,18 +1,16 @@
 from traits.api import (HasTraits, Str, Array, Float,
           Bool, Enum, Instance, on_trait_change,Property,
           Button, List, CInt, CFloat)
-from meap.traitsui import (VGroup, HGroup, Item, HSplit,
-                          TableEditor,ObjectColumn)
-from traitsui.menu import OKButton, CancelButton
-from chaco.api import Plot, ArrayPlotData
-from chaco.tools.api import RangeSelection, RangeSelectionOverlay
+from meap.gui_tools import (
+    VGroup, HGroup, Item, HSplit, TableEditor, ObjectColumn, 
+    OKButton, CancelButton, Plot, ArrayPlotData, RangeSelection, 
+    RangeSelectionOverlay, marker_trait, LinePlot)
 import numpy as np
 
-from meap.traitsui import ComponentEditor, ColorTrait, KeySpec
-from chaco.api import marker_trait
-from chaco.lineplot import LinePlot
+from meap.gui_tools import ComponentEditor, ColorTrait, KeySpec
 from meap.filters import smooth
-from meap import MEAPView, SUPPORTED_SIGNALS, colors
+from meap.gui_tools import MEAPView, messagebox
+from meap import SUPPORTED_SIGNALS, colors
 
 
 from scipy.stats.mstats import winsorize
@@ -21,7 +19,7 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-from meap import SEARCH_WINDOW, messagebox
+from meap import SEARCH_WINDOW
 n_regions=0
 
 

@@ -8,13 +8,13 @@ from meap.io import PhysioData
 
 import time
 import numpy as np
-from meap import MEAPView
 # Needed for Tabular adapter
-from meap.traitsui import ( Item, TableEditor,
+from meap.gui_tools import ( Item, TableEditor,
         ObjectColumn,HGroup,VGroup, SetEditor, Plot, 
-        ScatterInspectorOverlay, ScatterInspector)
+        ScatterInspectorOverlay, ScatterInspector, MEAPView,
+        ArrayPlotData)
 
-from meap.traitsui import ComponentEditor, ProgressDialog
+from meap.gui_tools import ComponentEditor, ProgressDialog
 from sklearn.decomposition import FastICA
 
 

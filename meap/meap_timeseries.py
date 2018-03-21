@@ -16,14 +16,13 @@ indices of the selected points computed in real time.
 # Chaco spits out lots of deprecation warnings
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
-from meap import MEAPView
 from meap.io import PhysioData
 
 # Enthought library imports
 from traits.api import HasTraits, Instance,Str, Array, Event, Tuple
-from meap.traitsui import (Item, Group, ComponentEditor,
+from meap.gui_tools import (Item, Group, ComponentEditor,
         DataRange1D, ArrayPlotData, Plot, jet,RangeSelection,
-        RangeSelectionOverlay
+        RangeSelectionOverlay, MEAPView
         )
 
 import logging

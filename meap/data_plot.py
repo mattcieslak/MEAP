@@ -1,10 +1,9 @@
 from traits.api import (HasTraits, Instance, on_trait_change,Property, 
                         Range, Float,DelegatesTo)
-from meap.traitsui import (VGroup, Item, Group, Handler, VPlotContainer,
-                           DataRange1D)
+from meap.gui_tools import (VGroup, Item, Group, Handler, VPlotContainer,
+                           DataRange1D, MEAPView)
 from traitsui.menu import OKButton, CancelButton
 import numpy as np
-from meap import MEAPView
 from meap.io import PhysioData
 from meap.timeseries import TimeSeries
 import logging

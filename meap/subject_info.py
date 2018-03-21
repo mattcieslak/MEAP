@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-from meap import  MEAPView
 from meap.io import PhysioData
 from traits.api import (HasTraits, DelegatesTo, Instance)
-from meap.traitsui import Item, VGroup
+from meap.gui_tools import Item, VGroup, MEAPView
 from traitsui.menu import OKButton
 
 

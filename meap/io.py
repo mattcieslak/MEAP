@@ -1,5 +1,5 @@
 from meap import (fail, __version__, ENSEMBLE_SIGNALS,
-                  SMOOTHING_WINDOWS, messagebox)
+                  SMOOTHING_WINDOWS)
 import os
 import tempfile
 
@@ -7,7 +7,7 @@ from traits.api import (HasTraits, CStr, Array, CFloat, CInt,Str,
                         Bool, Enum, Instance, File,Property,
                         Range,Int, List, PrototypedFrom,cached_property,
                         CBool, CArray, Set, CList)
-from meap.traitsui import Item, Group
+from meap.gui_tools import Item, Group, messagebox
 
 from scipy.io.matlab import savemat, loadmat
 import numpy as np

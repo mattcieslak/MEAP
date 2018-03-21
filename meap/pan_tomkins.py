@@ -5,7 +5,7 @@ from traits.api import (HasTraits, Array, cached_property,
 
 from meap.filters import (bandpass, smooth, times_contained_in,
         censor_peak_times, normalize,find_peaks)
-from meap import MEAPView, messagebox
+from meap.gui_tools import MEAPView, messagebox
 from meap.io import PhysioData, peak_stack
 from meap.timeseries import TimeSeries
 from skimage.filters import threshold_otsu
@@ -18,7 +18,7 @@ import time
 import numpy as np
 
 # Needed for Tabular adapter
-from meap.traitsui import ( Group, Item, VSplit, VGroup, HGroup,
+from meap.gui_tools import ( Group, Item, VSplit, VGroup, HGroup,
     OKButton, CancelButton, ArrayPlotData, Plot, jet, ScatterPlot,
     RangeSelectionOverlay, ZoomTool, ComponentEditor)
 

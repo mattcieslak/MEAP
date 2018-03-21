@@ -3,10 +3,9 @@ from traits.api import (HasTraits, Str, Array, Float,CFloat, Dict,
           Bool, Enum, Instance, on_trait_change,File,Property,
           Range, DelegatesTo, Int, Button, List, Color,Set )
 # Needed for Tabular adapter
-from meap.traitsui import (Group, HGroup, VGroup, Item, TableEditor,
-        ObjectColumn)
+from meap.gui_tools import (Group, HGroup, VGroup, Item, TableEditor,
+        ObjectColumn, MEAPView)
 #from traitsui.table_adapter import TableAdapter
-from meap import MEAPView
 from meap.io import PhysioData
 from meap.pipeline import MEAPPipeline
 

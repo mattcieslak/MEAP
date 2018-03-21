@@ -4,12 +4,6 @@ import sys
 import logging
 import cPickle as pickle
 
-from meap.traitsui import View
-from traitsui.message import Message
-
-from traits.api import Str
-
-
 # Begin a logging output
 logging.basicConfig(format='%(asctime)s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -26,13 +20,6 @@ SEARCH_WINDOW=30 #samples
 BLOOD_RESISTIVITY=135. # Ohms cm
 n_regions=0
 __version__= "1.5.0"
-
-# Are we bundled?
-if getattr( sys, 'frozen', False ) :
-    _ROOT = sys._MEIPASS
-    # running in a bundle
-else :
-    _ROOT = os.path.abspath(os.path.dirname(__file__))
 
 # MEAP only knows what to do with a couple of signals
 SUPPORTED_SIGNALS=["ecg", "ecg2", "dzdt", "z0", "bp",
@@ -73,42 +60,11 @@ ENSEMBLE_SIGNALS = set((
     "doppler"
     ))
 
-from meap.traitsui import ImageResource
-icon = ImageResource(
-    os.path.join(_ROOT,"resources/logo512x512.png"))
-meap_splash = ImageResource(os.path.join(_ROOT, "resources/meap.png"))
-
-class MEAPView(View):
-    win_title=Str
-    resizable=True
-    def __init__(self, *args, **traits):
-        super(MEAPView,self).__init__(*args, **traits)
-        self.title = "MEAP [ v%s ]: "%__version__ + self.win_title
-        self.icon = icon
-
-def messagebox(msg,title="Message",buttons=["OK"]):
-    m = Message(message=msg)
-    ui = m.edit_traits(
-         view = MEAPView(
-                        ["message~", "|<>"], title=title,buttons=buttons,kind="modal"
-         )
-    )
 
 
-
-from meap.traitsui import Action
-ParentButton = Action(name="Back",
-                          action="show_parent",
-                          image=icon
-                          )
 
 def fail(msg,interactive=False):
     logger.critical(msg)
-    if interactive:
-        messagebox(msg,buttons=["Cancel"],title="Fatal error!")
-
-
-
 
 def print_classes(obj,pad=""):
     """

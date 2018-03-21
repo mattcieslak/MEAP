@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-from meap import MEAPView
+from meap.gui_tools import MEAPView, messagebox
 import nibabel as nib
 from sklearn.linear_model import LinearRegression
 import numpy as np
 from meap.io import PhysioData
-from meap import messagebox
 from meap.filters import normalize
 from meap.timeseries import TimeSeries
 from traits.api import ( HasTraits, Enum, Array, Str, List,
         DelegatesTo, Instance, Int, File, Button, Bool )
-from meap.traitsui import VGroup, Item
+from meap.gui_tools import VGroup, Item
 # Respiratory peaks
 from scipy.stats.mstats import winsorize
 import pandas as pd

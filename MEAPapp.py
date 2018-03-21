@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-
-from traits.etsconfig.api import ETSConfig
-ETSConfig.toolkit = 'qt4'
+from meap.gui_tools import (MEAPView, VGroup, Item, ImageResource,
+                            SplashScreen, meap_splash)
 from time import time, sleep
 import sys,os
 from traits.api import HasTraits, Button, Instance
-from meap.traitsui import View, HGroup, VGroup, Item
-from meap import MEAPView
-from meap.traitsui import ComponentEditor
-from meap.traitsui import ImageResource, SplashScreen
-from meap import meap_splash, __version__
+from meap import __version__
 
 
 class MEAPGreeter(HasTraits):

@@ -1,4 +1,4 @@
-from meap import fail, MEAPView
+from meap import fail
 from meap.readers import Importer, AcqImporter, MatfileImporter
 from meap.pan_tomkins import PanTomkinsDetector
 from meap.moving_ensemble import MovingEnsembler
@@ -11,7 +11,7 @@ from meap.physio_regressors import FMRITool
 from meap.dzdt_warping import GroupRegisterDZDT
 import os
 from traits.api import (HasTraits, Bool,  Instance, File, Button, Dict)
-from meap.traitsui import Item, VGroup, spring
+from meap.gui_tools import Item, VGroup, spring, MEAPView
 
 import logging
 logger = logging.getLogger(__name__)

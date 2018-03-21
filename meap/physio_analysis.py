@@ -4,18 +4,16 @@ from traits.api import (HasTraits, Str, Array, Float,CFloat, Dict,
           Range, DelegatesTo, Int, Button, List, Color,Set,Event,CBool )
 import numpy as np
 
-from meap.traitsui import (Group, View, Item, TableEditor, VSplit,
+from meap.gui_tools import (Group, View, Item, TableEditor, VSplit,
         ObjectColumn, ExpressionColumn,HSplit, EnumEditor, SetEditor,
-        Handler)
+        Handler,messagebox)
 from traitsui.table_column import ObjectColumn
 from meap.beat_train import BeatTrain
 from meap.beat import EnsembleAveragedHeartBeat, GlobalEnsembleAveragedHeartBeat
 from meap.io import PhysioData, load_from_disk
-from meap import messagebox
 from numpy import nanmean, nanstd
 from collections import defaultdict
-from meap import MEAPView
-from meap.traitsui import ProgressDialog
+from meap.gui_tools import ProgressDialog, MEAPView
 import logging
 logger = logging.getLogger(__name__)
 import joblib
@@ -27,7 +25,7 @@ from meap import outlier_feature_function_for_physio_experiment
 import os
 import os.path as op
 
-from meap.traitsui import (ComponentEditor, ColorTrait, ColorBar,
+from meap.gui_tools import (ComponentEditor, ColorTrait, ColorBar,
         ArrayPlotData, ColormappedSelectionOverlay, HPlotContainer,
         jet, gist_rainbow, LinearMapper, Plot, ScatterInspectorOverlay,
         PanTool, ZoomTool, LineInspector, ScatterInspector, ScatterPlot,

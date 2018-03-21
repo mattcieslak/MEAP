@@ -3,11 +3,10 @@ import joblib
 import logging
 import os
 import numpy as np
-from meap import messagebox
 from meap.io import PhysioData
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import AdaBoostRegressor
-from meap.traitsui import ProgressDialog
+from meap.gui_tools import ProgressDialog, messagebox
 from copy import deepcopy
 from meap.filters import smooth
 

@@ -1,9 +1,9 @@
 from traits.api import (HasTraits, Str, Array, Float, CFloat, CBool,
           Bool, Enum, Instance, on_trait_change,File,Property,
           Range,Int, CInt, List, Button, Dict)
-from meap.traitsui import ( View, Item, VGroup, HGroup, Group,
+from meap.gui_tools import ( View, Item, VGroup, HGroup, Group,
      RangeEditor, TableEditor, Handler, Include,HSplit, EnumEditor, HSplit, Action,
-     CheckListEditor, ObjectColumn )
+     CheckListEditor, ObjectColumn, fail, MEAPView )
 from traitsui.menu import OKButton, CancelButton
 
 import numpy as np
@@ -11,8 +11,7 @@ import numpy as np
 import bioread
 from scipy.io.matlab import loadmat
 
-from meap import (ParentButton, fail, 
-    DEFAULT_SAMPLING_RATE, MEAPView, SUPPORTED_SIGNALS)
+from meap import DEFAULT_SAMPLING_RATE, SUPPORTED_SIGNALS
 from meap.io import PhysioData
 from meap.filters import downsample
 import os

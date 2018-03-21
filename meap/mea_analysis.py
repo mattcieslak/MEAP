@@ -6,8 +6,8 @@ from filters import bandpass, smooth
 import time
 import numpy as np
 
-from meap.traitsui import (Group, View, Item, TableEditor,
-        ObjectColumn, ExpressionColumn,HSplit, EnumEditor)
+from meap.gui_tools import (Group, View, Item, TableEditor,
+        ObjectColumn, ExpressionColumn, HSplit, EnumEditor, MEAPView)
 from traitsui.table_column \
     import ObjectColumn, ExpressionColumn
 
@@ -15,7 +15,6 @@ from meap.moving_ensemble import MovingEnsembler
 from meap.beat import EnsembleAveragedHeartBeat,get_global_ensemble_average, GlobalEnsembleAveragedHeartBeat
 from meap.io import PhysioData, load_from_disk
 from numpy import nanmean, nanstd
-from meap import MEAPView
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,7 +32,7 @@ from chaco.tools.line_inspector import LineInspector
 from chaco.scatterplot import ScatterPlot
 from chaco.lineplot import LinePlot
 
-from meap.traitsui import ComponentEditor, ColorTrait
+from meap.gui_tools import ComponentEditor, ColorTrait
 from chaco.api import marker_trait
 from scipy.interpolate import interp1d
 from sklearn.decomposition import FastICA

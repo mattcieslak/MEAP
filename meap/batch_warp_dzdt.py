@@ -4,12 +4,12 @@ from traits.api import (HasTraits,  Array,  File, cached_property,
           DelegatesTo, Int, Button, List, Set, Float, Str,Directory)
 import os
 # Needed for Tabular adapter
-from meap.traitsui import (Item,HGroup,VGroup, HSplit, ObjectColumn, 
+from meap.gui_tools import (Item,HGroup,VGroup, HSplit, ObjectColumn, 
                            TableEditor, ProgressDialog)
 from traitsui.menu import OKButton, CancelButton
 import numpy as np
 import time
-from meap import MEAPView, messagebox
+from meap.gui_tools import MEAPView, messagebox
 from meap.io import load_from_disk, PhysioData
 from glob import glob
 

@@ -2,11 +2,11 @@
 # Major library imports
 import numpy as np
 # Enthought library imports
-from meap.traitsui import DragTool
+from meap.gui_tools import DragTool
 from traits.api import ( Instance, Int, Tuple, Event,
       Any,  Array, Enum, Float, CInt, CFloat, Str)
 # Chaco imports
-from meap.traitsui import BaseTool, CoordinateLineOverlay
+from meap.gui_tools import BaseTool, CoordinateLineOverlay
 
 from logging import getLogger
 logger = getLogger(__name__)
@@ -207,7 +207,7 @@ class DBTool(BTool):
         self.x_selected_time = self.time
     
 
-from meap.traitsui import ColorTrait
+from meap.gui_tools import ColorTrait
 
 class BMarker(CoordinateLineOverlay):
     """

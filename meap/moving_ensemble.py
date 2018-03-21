@@ -6,9 +6,9 @@ import os
 import joblib
 
 # Needed for Tabular adapter
-from meap.traitsui import Item,HGroup,VGroup, HSplit, ProgressDialog
+from meap.gui_tools import Item,HGroup,VGroup, HSplit, ProgressDialog
 from traitsui.menu import OKButton, CancelButton
-from meap.traitsui import (ComponentEditor, Plot, ArrayPlotData, 
+from meap.gui_tools import (ComponentEditor, Plot, ArrayPlotData, 
         VPlotContainer, jet)
 import numpy as np
 
@@ -16,7 +16,7 @@ from meap.beat_train import MEABeatTrain
 from meap.meap_timeseries import MEAPTimeseries
 from meap.beat import GlobalEnsembleAveragedHeartBeat
 import time
-from meap import MEAPView, ParentButton, messagebox
+from meap.gui_tools import MEAPView, messagebox
 from meap.io import PhysioData
 from meap.classifiers import BPointClassifier
 from meap.filters import zero_crossing_index
@@ -534,7 +534,7 @@ class MovingEnsembler(HasTraits):
         resizable=True,
         win_title="Physio Timeseries",
         width=800, height=700,
-        buttons = [ParentButton,OKButton,CancelButton]
+        buttons = [OKButton,CancelButton]
     )
 
 

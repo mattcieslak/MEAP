@@ -1,8 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 has_ui = True
 
 try:
-    from traitsui import View
+    from traitsui.api import View
 except Exception, e:
+    logger.info(e)
     has_ui = False
     
 
@@ -13,7 +17,7 @@ make dummy classes so the rest of the library still
 works.
 
 """
-if hasui:
+if has_ui:
     from traitsui.message import Message
     from traitsui.api import ( View, HGroup, VGroup,
         Group, Item, Action, ObjectColumn, TableEditor,
@@ -69,11 +73,7 @@ else:
             pass
 
 if has_ui:
-    from meap.traitsui import Action
-    ParentButton = Action(name="Back",
-                              action="show_parent",
-                              image=icon
-                              )
+    from meap._traitsui import Action
     def messagebox(msg,title="Message",buttons=["OK"]):
         m = Message(message=msg)
         ui = m.edit_traits(
@@ -85,8 +85,15 @@ else:
     class Action(object):
         def __init__(self, *args, **kwargs):
             pass
-    ParentButton = None
     def messagebox(msg, title="Message", buttons=["OK"]):
         print msg
 
 
+
+def messagebox(msg,title="Message",buttons=["OK"]):
+    m = Message(message=msg)
+    ui = m.edit_traits(
+         view = MEAPView(
+                        ["message~", "|<>"], title=title,buttons=buttons,kind="modal"
+         )
+    )

@@ -9,7 +9,7 @@ from numpy import array
 # Enthought library imports
 from traits.api import Any, Array, Bool, Enum, Event, Float, Int, Instance, \
                          List, Property, Str, Trait, Tuple
-from meap.traitsui import KeySpec, ColorTrait, RangeSelection, RangeSelectionOverlay
+from meap.gui_tools import KeySpec, ColorTrait, RangeSelection, RangeSelectionOverlay
 
 
 class PeakPickingOverlay(RangeSelectionOverlay):

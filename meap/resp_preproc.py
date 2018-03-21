@@ -6,16 +6,16 @@ from traits.api import (HasTraits, Str, Array, Float,cached_property,
 from meap.io import PhysioData
 from meap.filters import (bandpass, smooth, regress_out,
                           censor_peak_times, legendre_detrend, lowpass, find_peaks)
-from meap import fail, MEAPView, messagebox
 from meap.timeseries import TimeSeries
 import numpy as np
 
 # Needed for Tabular adapter
-from meap.traitsui import (Group, View, Item, TableEditor,
+from meap.gui_tools import (Group, View, Item, TableEditor,
         ObjectColumn,VSplit, RangeEditor, OKButton, CancelButton,
-        Plot, ArrayPlotData, VPlotContainer, ScatterPlot, LinePlot)
+        Plot, ArrayPlotData, VPlotContainer, ScatterPlot, LinePlot,
+        MEAPView, messagebox, fail)
 
-from meap.traitsui import ComponentEditor
+from meap.gui_tools import ComponentEditor
 from scipy.interpolate import interp1d
 from scipy.stats.mstats import winsorize
 

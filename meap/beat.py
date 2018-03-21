@@ -4,16 +4,16 @@ from traits.api import (HasTraits, Str, Array, Float,
           DelegatesTo, Int, Button, List, Event,
           Either,CInt)
 from meap.filters import smooth, normalize
-from meap import BLOOD_RESISTIVITY, MEAPView, ENSEMBLE_SIGNALS,colors
+from meap import BLOOD_RESISTIVITY, ENSEMBLE_SIGNALS, colors
 from meap.timeseries import TimePoint
 from meap.io import PhysioData
 from meap.point_marker2 import PointDraggingTool, DBTool, BTool, BMarker
 import numpy as np
-from meap.traitsui import ( Item, VGroup, HGroup, Group,
+from meap.gui_tools import ( MEAPView, Item, VGroup, HGroup, Group,
      TableEditor, HSplit, ObjectColumn, SetEditor, ProgressDialog )
 from traitsui.menu import OKButton, CancelButton
 
-from meap.traitsui import (ComponentEditor, Component,
+from meap.gui_tools import (ComponentEditor, Component,
         DataLabel, ScatterPlot, ArrayDataSource,
         Plot, ArrayPlotData, HPlotContainer, VPlotContainer)
 import logging
