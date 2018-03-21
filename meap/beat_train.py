@@ -10,13 +10,11 @@ import time
 import numpy as np
 from meap import MEAPView
 # Needed for Tabular adapter
-from traitsui.api import ( Item, TableEditor,
-        ObjectColumn,HGroup,VGroup, SetEditor)
-from chaco.api import Plot, ArrayPlotData, ScatterInspectorOverlay
-from chaco.tools.api import ScatterInspector
+from meap.traitsui import ( Item, TableEditor,
+        ObjectColumn,HGroup,VGroup, SetEditor, Plot, 
+        ScatterInspectorOverlay, ScatterInspector)
 
-from enable.component_editor import ComponentEditor
-from pyface.api import ProgressDialog
+from meap.traitsui import ComponentEditor, ProgressDialog
 from sklearn.decomposition import FastICA
 
 

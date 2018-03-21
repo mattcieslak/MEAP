@@ -3,9 +3,12 @@ import numpy as np
 import sys
 import logging
 import cPickle as pickle
-from traitsui.api import View
-from traits.api import Str
+
+from meap.traitsui import View
 from traitsui.message import Message
+
+from traits.api import Str
+
 
 # Begin a logging output
 logging.basicConfig(format='%(asctime)s %(message)s',
@@ -22,7 +25,7 @@ DEFAULT_SAMPLING_RATE=1000
 SEARCH_WINDOW=30 #samples
 BLOOD_RESISTIVITY=135. # Ohms cm
 n_regions=0
-__version__= "1.4.0"
+__version__= "1.5.0"
 
 # Are we bundled?
 if getattr( sys, 'frozen', False ) :
@@ -70,7 +73,7 @@ ENSEMBLE_SIGNALS = set((
     "doppler"
     ))
 
-from pyface.image_resource import ImageResource
+from meap.traitsui import ImageResource
 icon = ImageResource(
     os.path.join(_ROOT,"resources/logo512x512.png"))
 meap_splash = ImageResource(os.path.join(_ROOT, "resources/meap.png"))
@@ -93,7 +96,7 @@ def messagebox(msg,title="Message",buttons=["OK"]):
 
 
 
-from traitsui.api import Action
+from meap.traitsui import Action
 ParentButton = Action(name="Back",
                           action="show_parent",
                           image=icon

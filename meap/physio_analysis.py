@@ -4,7 +4,7 @@ from traits.api import (HasTraits, Str, Array, Float,CFloat, Dict,
           Range, DelegatesTo, Int, Button, List, Color,Set,Event,CBool )
 import numpy as np
 
-from traitsui.api import (Group, View, Item, TableEditor, VSplit,
+from meap.traitsui import (Group, View, Item, TableEditor, VSplit,
         ObjectColumn, ExpressionColumn,HSplit, EnumEditor, SetEditor,
         Handler)
 from traitsui.table_column import ObjectColumn
@@ -15,7 +15,7 @@ from meap import messagebox
 from numpy import nanmean, nanstd
 from collections import defaultdict
 from meap import MEAPView
-from pyface.api import ProgressDialog
+from meap.traitsui import ProgressDialog
 import logging
 logger = logging.getLogger(__name__)
 import joblib
@@ -27,25 +27,17 @@ from meap import outlier_feature_function_for_physio_experiment
 import os
 import os.path as op
 
-from chaco.api import ArrayPlotData, ColorBar, \
-                                 ColormappedSelectionOverlay, HPlotContainer, \
-                                 jet,gist_rainbow, LinearMapper, Plot, ScatterInspectorOverlay
-from chaco.tools.api import PanTool, ZoomTool
-from chaco.tools.line_inspector import LineInspector
-from chaco.tools.scatter_inspector import ScatterInspector
-from chaco.scatterplot import ScatterPlot
-from chaco.lineplot import LinePlot
-
-from enable.component_editor import ComponentEditor
-from enable.api import ColorTrait
-from chaco.api import marker_trait, DataRange1D, gist_rainbow
+from meap.traitsui import (ComponentEditor, ColorTrait, ColorBar,
+        ArrayPlotData, ColormappedSelectionOverlay, HPlotContainer,
+        jet, gist_rainbow, LinearMapper, Plot, ScatterInspectorOverlay,
+        PanTool, ZoomTool, LineInspector, ScatterInspector, ScatterPlot,
+        LinePlot, marker_trait, DataRange1D
+        )
 from scipy.interpolate import interp1d
 from sklearn.decomposition import FastICA
 
 from traitsui.color_column \
      import ColorColumn
-from enable.api \
-     import ColorTrait
 
 import pandas as pd
 from sklearn.linear_model import LinearRegression

@@ -11,14 +11,11 @@ from meap.timeseries import TimeSeries
 import numpy as np
 
 # Needed for Tabular adapter
-from traitsui.api import (Group, View, Item, TableEditor,
-        ObjectColumn,VSplit, RangeEditor)
-from traitsui.menu import OKButton, CancelButton
-from chaco.api import Plot, ArrayPlotData, VPlotContainer
-from chaco.scatterplot import ScatterPlot
-from chaco.lineplot import LinePlot
+from meap.traitsui import (Group, View, Item, TableEditor,
+        ObjectColumn,VSplit, RangeEditor, OKButton, CancelButton,
+        Plot, ArrayPlotData, VPlotContainer, ScatterPlot, LinePlot)
 
-from enable.component_editor import ComponentEditor
+from meap.traitsui import ComponentEditor
 from scipy.interpolate import interp1d
 from scipy.stats.mstats import winsorize
 

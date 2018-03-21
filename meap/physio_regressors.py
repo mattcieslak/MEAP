@@ -9,7 +9,7 @@ from meap.filters import normalize
 from meap.timeseries import TimeSeries
 from traits.api import ( HasTraits, Enum, Array, Str, List,
         DelegatesTo, Instance, Int, File, Button, Bool )
-from traitsui.api import VGroup, Item
+from meap.traitsui import VGroup, Item
 # Respiratory peaks
 from scipy.stats.mstats import winsorize
 import pandas as pd
@@ -19,6 +19,40 @@ from scipy.interpolate import interp1d
 
 import logging
 logger=logging.getLogger(__name__)
+
+def get_slicenum_volume(volume_shape, volume_affine, acquisition_type,
+                        acquisition_direction):
+    volume = np.zeros(volume_shape)
+    if acquisition_type == "Coronal":
+        direction = "A" if volume_affine[1,1] > 0 else "P"
+        slice_ids = np.arange(volume_shape[1])
+        if not direction == acquisition_direction[1].upper():
+            slice_ids = slice_ids[::-1]
+
+    elif acquisition_type == "Axial":
+        slice_ids = np.arange(volume_shape[2])
+        direction = "S" if volume_affine[2,2] > 0 else "I"
+        slice_ids = np.arange(volume_shape[2])
+        if not direction == acquisition_direction[2].upper():
+            slice_ids = slice_ids[::-1]
+
+    elif acquisition_type == "Saggittal":
+        slice_ids = np.arange(volume_shape[0])
+        direction = "R" if volume_affine[0,0] > 0 else "L"
+        slice_ids = np.arange(volume_shape[0])
+        if not direction == acquisition_direction[0].upper():
+            slice_ids = slice_ids[::-1]
+
+    for slice_index, slicenum in enumerate(slice_ids):
+        if acquisition_type == "Coronal":
+            volume[:,slice_index,:] = slicenum
+        elif acquisition_type == "Axial":
+            volume[:,:,slice_index] = slicenum
+        elif acquisition_type == "Saggittal":
+            volume[slice_index,:,:] = slicenum
+
+    return volume
+
 
 def fourier_expand(phases,order=2):
     series = []
@@ -38,9 +72,10 @@ class FMRITool(HasTraits):
 
     slice_times_txt = Str
     slice_times = Array
+    slice_times_matrix = Array
     acquisition_type = Enum("Coronal", "Saggittal", "Axial")
     correction_type = Enum(values="possible_corrections")
-    possible_corrections = List(["Whole Volume"])
+    possible_corrections = List(["Slicewise Regression"])
     respiration_expansion_order = Int(2)
     cardiac_expansion_order = Int(3)
     interaction_expansion_order = Int(1)
@@ -57,7 +92,10 @@ class FMRITool(HasTraits):
     fmri_mask = File
     denoised_output = File
     regression_output = File
+    nuisance_output_prefix = Str
     b_calculate = Button(label="RUN")
+    write_4d_nuisance = Bool(False)
+    write_4d_nuisance_for_each_modality = Bool(False)
 
     interactive = Bool(False)
     missing_triggers = Int(0)
@@ -70,6 +108,9 @@ class FMRITool(HasTraits):
             Item("acquisition_type"),
             Item("denoised_output"),
             Item("regression_output"),
+            Item("nuisance_output_prefix"),
+            Item("write_4d_nuisance"),
+            Item("write_4d_nuisance_for_each_modality"),
             show_border=True,label="fMRI I/O"),
             VGroup(
                 Item("cardiac_expansion_order"),
@@ -79,10 +120,30 @@ class FMRITool(HasTraits):
                 Item("physio_design_file"),
                 show_border=True,label="RETROICOR")
         ),
-        win_title="fMRI Tools"
+        Item("b_calculate",show_label=False),
+        win_title="RETROICOR"
     )
     
+    def _load_slice_timings(self):
+        try:
+            _slices = np.loadtxt(self.slice_times_txt)
+        except Exception, e:
+            messagebox("Unable to load slice timings:\n%s" %e)
+            raise ValueError
+        # Slice times should be one row per TR, and one column
+        # per slice.
+        self.slice_times = _slices
+    
 
+    def _b_calculate_fired(self):
+        # Load the slice timings data
+        self._load_slice_timings()
+        n_trs = len(self.tr_onsets)
+        if not n_trs > 0:
+            messagebox("A 4D NIfTI file must be specified")
+            raise ValueError
+        self.slice_times_matrix = np.row_stack([self.slice_times] * n_trs)
+        
 
     def _fmri_file_changed(self):
         # When is scanning occurring? In order to generate a 
@@ -108,12 +169,22 @@ class FMRITool(HasTraits):
 
         peak_times = self.physiodata.peak_times 
         dne_peak_times = self.physiodata.dne_peak_times
-        all_peaks = np.unique(np.sort(np.concatenate((peak_times,dne_peak_times))))
+        
+        if dne_peak_times.size > 0 and dne_peak_times.ndim == 0:
+            dne_peak_times = np.array([dne_peak_times])
+            
+        if len(dne_peak_times):
+            _peaks = np.concatenate([peak_times, dne_peak_times])
+        else:
+            _peaks = peak_times
+        all_peaks = np.unique(np.sort(_peaks))
+        
         self.r_times = all_peaks[
                   (all_peaks >= self.tr_onsets[0]-5) * \
                   (all_peaks <= self.tr_onsets[-1]+5)]
-        self.time = TimeSeries(physiodata = self.physiodata, 
-                            contains="z0").time
+        t = np.arange(len(self.physiodata.z0_data)) / \
+                    self.physiodata.z0_sampling_rate + self.physiodata.z0_start_time
+        self.time = t
         scanning_mask = (self.time >= self.tr_onsets[0]-3) * \
             (self.time <= self.tr_onsets[-1]+3)
         self.resp_times = self.processed_respiration_time[scanning_mask]
@@ -146,15 +217,26 @@ class FMRITool(HasTraits):
         if self.acquisition_type == "Coronal":
             expected_slices = bold.shape[1]
         elif self.acquisition_type == "Axial":
-            expected_slices = bold.shape[2]
+            expected_slices = bold.shape[0]
         elif self.acquisition_type == "Saggittal":
             expected_slices = bold.shape[2]
 
-        if not expected_slices == len(self.slice_times):
+        # Check that the number of slice timings matches matrix
+        if not (self.slice_times_matrix.ndim == 2 and \
+                expected_slices == self.slice_times_matrix.shape[1]):
             messagebox("Acquisition of type %s requires %d slices. \
                     %d slice times were provided"%(self.acquisition_type,expected_slices,
-                        len(self.slice_times) ))
+                        self.slice_times_matrix.shape[1]))
             raise ValueError
+        
+        # Only needed when slice_times_matrix is manually specified
+        num_trs = bold.shape[3]
+        if self.slice_times_matrix.shape[0] < num_trs:
+            messagebox("Not enough slice timings to cover the 4d time series")
+            raise ValueError
+        if self.slice_times_matrix.shape[0] > num_trs:
+            self.slice_times_matrix = self.slice_times_matrix[:num_trs,:]            
+            
         resp_hist, bins = np.histogram(self.resp_signal,N_BINS)
         resp_transfer_func = np.concatenate([
             [0],np.cumsum(resp_hist)/float(resp_hist.sum())])
@@ -166,17 +248,16 @@ class FMRITool(HasTraits):
             np.round(normalize(self.resp_signal) * N_BINS).astype(np.int)]*np.sign(resp_diff)
 
         # At what phase did the TR occur?
-        
         regressors = []
-        for slicenum, offset in enumerate(self.slice_times):
+        for slicenum in range(self.slice_times_matrix.shape[1]):
+            offsets = self.tr_onsets + self.slice_times_matrix[:,slicenum] / 1000.
             logger.info("Computing regressors for slice %d",slicenum)
             tr_cardiac_phase = np.array(
-                    [self.heartbeat_phase(t+offset) for t in self.tr_onsets])
-
+                    [self.heartbeat_phase(t) for t in offsets])
 
             tr_indices = np.array(
-                [np.argmin(np.abs((t+offset)-self.resp_times)) for t in self.tr_onsets]
-            ).astype(np.int)    
+                [np.argmin(np.abs(t-self.resp_times)) for t in offsets]
+            ).astype(np.int)
             tr_resp_phase = resp_phase[tr_indices]
 
             resp_regressors = fourier_expand(tr_resp_phase,
@@ -202,124 +283,21 @@ class FMRITool(HasTraits):
             regressors.append(pd.DataFrame(data=data,columns=columns))
         return regressors
 
-    def process_mri_whole_volume(self, whole_design):
-        # Load the bold data
-        _img = nib.load(self.fmri_file)
-        img = _img.get_data()
-
-        # Check that the fmri timeseries is compatible with the mri_trigers
-        tr = _img.get_header().get_zooms()[-1]
-        trigger_spacing = np.mean(np.diff(self.tr_onsets))
-        if not abs(tr-trigger_spacing) < 0.001:
-            messagebox("fMRI TR does not match triggers in physiodata")
-        n_volumes = _img.shape[-1]
-        if not n_volumes == len(self.tr_onsets):
-            messagebox("fMRI TR does not match triggers in physiodata")
-
-        
-        if not op.exists(self.fmri_mask):
-            raise ValueError("Mask file does not exist")
-        _mask = nib.load(self.fmri_mask)
-        mask = _mask.get_data()
-
-        ts = img[mask>0]
-        # sometimes a trigger is sent before the scan is cancelled.
-        CHOP = False
-        #if ts.shape[1] < whole_design.shape[1]:
-        #    whole_design = whole_design[:,:ts.shape[1]]
-        #    CHOP = True
-        #elif ts.shape[1] > whole_design.shape[1]:
-        #    ts = ts[:,:whole_design.shape[1]]
-        retroicorrected = np.zeros_like(ts)
-            
-        if not ts.shape[1] == whole_design.shape[1]: raise AttributeError
-
-        reg = LinearRegression()
-        voxel_fits = np.zeros(ts.shape[0])
-        whole_design = whole_design.T
-        for nvox, voxel in enumerate(ts):
-            if nvox % 1000 == 0 : print nvox
-            reg.fit(whole_design, voxel)
-            voxel_fits[nvox] = reg.score(whole_design, voxel)
-            retroicorrected[nvox] = voxel - reg.predict(whole_design)
-                
-        # write the output
-        def save_scalars(vec,filename):
-            new_data = np.zeros_like(mask,dtype=np.float32)
-            new_data[mask>0] = vec
-            nib.Nifti1Image(new_data,_mask.get_affine(),
-                    header=_mask.get_header()).to_filename(filename)
-            
-        # write the output
-        def save_vectors(vec,filename):
-            out_shape = list(_img.shape)
-            out_shape[-1] = whole_design.shape[0]
-            new_data = np.zeros(out_shape, dtype=np.float32)
-            new_data[mask>0] = vec
-            nib.Nifti1Image(new_data, _img.get_affine(),
-                    header=_img.get_header()).to_filename(filename)
-                
-        save_scalars(voxel_fits,self.regression_output)
-        save_vectors(retroicorrected, self.denoised_output)
-
-        def save_physio_regressors(self):
-            # Calculate the regression of PEP on the image
-            def get_model(mea_ts):
-                model = winsorize([self.beat_value_for_model(t,mea_ts) for t in \
-                                                    self.tr_onsets],limits=(0.05,0.05))
-                centered = np.array((model - model.mean())/model.std())
-                return centered
-            # Create and save the models
-            pep_model = get_model(self.physiodata.mea_pep)
-            sv_model = get_model(self.physiodata.sv)
-            pd.DataFrame(pep_model, sv_model)
-    
     def process_mri_slices(self, slice_regressors):
         # Load the bold data
         _img = nib.load(self.fmri_file)
         img = _img.get_data()
 
-        # Check that the fmri timeseries is compatible with the mri_trigers
-        tr = _img.get_header().get_zooms()[-1]
-        trigger_spacing = np.mean(np.diff(self.tr_onsets))
-        if not abs(tr-trigger_spacing) < 0.0001:
-            messagebox("CRITICAL: fMRI triggers in physiodata are not precies to 1msec")
-            return
-        n_volumes = _img.shape[-1]
-        n_triggers = len(self.tr_onsets)
-        if n_volumes < n_triggers:
-            self.missing_triggers = len(self.tr_onsets) - n_volumes
-            msg = """
-                fMRI volumes (%d) do not match number of triggers in physiodata(%d)
-                We'll ignore the last %d triggers""" % (n_volumes,n_triggers,
-                    self.missing_triggers)
-            
-        elif n_volumes > len(self.tr_onsets):
-            self.missing_volumes = n_volumes - n_triggers
-            msg = """
-                fMRI volumes (%d) do not match number of triggers in physiodata(%d)
-                We'll ignore the last %d fMRI volumes"""% (n_volumes,n_triggers,
-                    self.missing_volumes)
-        else:
-            msg = ""
-
-        # Do the lengths match up?
-        if msg:
-            if self.interactive:
-                messagebox(msg)
-            else:
-                logger.warn(msg)
-
-            
         if not op.exists(self.fmri_mask):
             raise ValueError("Mask file does not exist")
         _mask = nib.load(self.fmri_mask)
         mask = _mask.get_data()
-        
+
         # Make a volume where each voxel contains its slice number
         slices = np.zeros(mask.shape)
         nslices = slices.shape[1]
-        slices[:,np.arange(nslices),:] = np.arange(nslices)[::-1][:,np.newaxis]
+        slices = get_slicenum_volume(_mask.shape, _img.affine,
+                    self.acquisition_type, self.acquisition_type)
 
         # Create a matrix of timeseries. also get a corresponding array of slice numbers
         ts = img[mask>0]
@@ -328,33 +306,59 @@ class FMRITool(HasTraits):
         # sometimes a trigger is sent before the scan is cancelled.
         design_len = np.array([x.shape[0] for x in slice_regressors])
         assert np.all(design_len == design_len[0])
-        design_len = design_len[0] 
+        design_len = design_len[0]
         nvols = ts.shape[1]
         if nvols < design_len:
             for nslice in range(nslices):
                 slice_regressors[nslice] = slice_regressors[nslice][:nvols]
         elif nvols > design_len:
             ts = ts[:,:design_len]
-        retroicorrected = np.zeros(ts.shape,dtype=np.float)
             
+        # Holds the corrected output
+        retroicorrected = np.zeros(ts.shape,dtype=np.float)
+        
+        # Holds a nuisance timeseries for each modality
+        if self.write_4d_nuisance_for_each_modality:
+            cardiac_fits = np.zeros_like(retroicorrected)
+            resp_fits = np.zeros_like(retroicorrected)
+            ix_fits = np.zeros_like(retroicorrected)
+        
+        # Holds a nuisance timeseries for all modalities
+        if self.write_4d_nuisance:
+            fitts = np.zeros_like(retroicorrected)
+        
         # Check again that it worked
         design_len = np.array([x.shape[0] for x in slice_regressors])
         assert np.all(design_len == design_len[0])
-        design_len = design_len[0] 
+        design_len = design_len[0]
         if not ts.shape[1] == design_len: raise AttributeError
 
         # Compute the fits
         reg = LinearRegression()
         voxel_fits = np.zeros(ts.shape[0])
         design_mats = [x.as_matrix() for x in slice_regressors]
+        columns = slice_regressors[0].columns
+        resp_mask = np.array([col.startswith("resp") for col in columns])
+        cardiac_mask = np.array([col.startswith("cardiac") for col in columns])
+        ix_mask = np.array([col.startswith("ix") for col in columns])
+        
+        
         for nvox, voxel in enumerate(ts):
             if nvox % 1000 == 0 : print nvox
-            # Get the design specific for this slice from 
+            # Get the design specific for this slice from
             whole_design = design_mats[slicenum[nvox]]
             reg.fit(whole_design, voxel)
             voxel_fits[nvox] = reg.score(whole_design, voxel)
-            retroicorrected[nvox] = voxel - reg.predict(whole_design) + reg.intercept_
+            retroicorrected[nvox] = reg.predict(whole_design)
+            
+            if self.write_4d_nuisance_for_each_modality:
+                cardiac_fits[nvox] = np.dot(whole_design, reg.coef_ * cardiac_mask)
+                resp_fits[nvox] = np.dot(whole_design, reg.coef_ * resp_mask)
+                ix_fits[nvox] = np.dot(whole_design, reg.coef_ * ix_mask)
                 
+            if self.write_4d_nuisance:
+                fitts[nvox] = np.dot(whole_design, reg.coef_)
+
         # write the output
         def save_scalars(vec,filename):
             new_data = np.zeros_like(mask,dtype=np.float32)
@@ -362,7 +366,7 @@ class FMRITool(HasTraits):
             nib.Nifti1Image(new_data,_mask.get_affine()#,
                     #header=_mask.get_header()).to_filename(filename)
                     ).to_filename(filename)
-            
+
         # write the output
         def save_vectors(vec,filename):
             out_shape = list(_img.shape)
@@ -371,12 +375,32 @@ class FMRITool(HasTraits):
             nib.Nifti1Image(new_data, _img.get_affine()
                     #header=_img.get_header()).to_filename(filename)
                     ).to_filename(filename)
-                
-        save_scalars(voxel_fits,self.regression_output)
-        logger.info("Wrote r^2 results to %s",self.regression_output)
+
+        save_scalars(voxel_fits, self.regression_output)
+        logger.info("Wrote r^2 results to %s", self.regression_output)
         save_vectors(retroicorrected, self.denoised_output)
         logger.info("Wrote physio-corrected 4D nifti to %s", self.denoised_output)
+        
+        if self.write_4d_nuisance_for_each_modality:
+            cardiac_out = self.nuisance_output_prefix + "_Cardiac_fits.nii.gz"
+            save_vectors(cardiac_fits, cardiac_out)
+            logger.info("Wrote Cardiac fit to %s" % cardiac_out)
+            
+            resp_out = self.nuisance_output_prefix + "_Resp_fits.nii.gz"
+            save_vectors(resp_fits, resp_out)
+            logger.info("Wrote Respiration fit to %s" % resp_out)
+            
+            ix_out = self.nuisance_output_prefix + "_RCInteraction_fits.nii.gz"
+            save_vectors(ix_fits, ix_out)
+            logger.info("Wrote Resp/Cardiac interaction fit to %s" % ix_out)
+            
+        if self.write_4d_nuisance:
+            all_out = self.nuisance_output_prefix + "_Nuisance_fits.nii.gz"
+            save_vectors(fitts, all_out)
+            logger.info("Wrote omnibus nuisance fit to %s" % all_out)
+            
         assert np.all(np.array(_img.shape) == np.array(nib.load(self.denoised_output).shape))
+    
 
     def get_mea_regressors(self):
         # Get mri time info

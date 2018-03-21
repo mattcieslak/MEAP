@@ -2,7 +2,7 @@
 from meap import  MEAPView
 from meap.io import PhysioData
 from traits.api import (HasTraits, DelegatesTo, Instance)
-from traitsui.api import Item, VGroup
+from meap.traitsui import Item, VGroup
 from traitsui.menu import OKButton
 
 

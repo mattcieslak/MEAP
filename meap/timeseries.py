@@ -1,16 +1,14 @@
 from traits.api import (HasTraits, Str, Array, Float,
           Bool, Enum, Instance, on_trait_change,Property,
           Button, List, CInt, CFloat)
-from traitsui.api import (VGroup, HGroup, Item, HSplit,
+from meap.traitsui import (VGroup, HGroup, Item, HSplit,
                           TableEditor,ObjectColumn)
 from traitsui.menu import OKButton, CancelButton
 from chaco.api import Plot, ArrayPlotData
 from chaco.tools.api import RangeSelection, RangeSelectionOverlay
 import numpy as np
 
-from enable.component_editor import ComponentEditor
-from enable.api import ColorTrait
-from enable.base_tool import KeySpec
+from meap.traitsui import ComponentEditor, ColorTrait, KeySpec
 from chaco.api import marker_trait
 from chaco.lineplot import LinePlot
 from meap.filters import smooth

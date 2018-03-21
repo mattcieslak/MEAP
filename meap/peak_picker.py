@@ -9,11 +9,8 @@ from numpy import array
 # Enthought library imports
 from traits.api import Any, Array, Bool, Enum, Event, Float, Int, Instance, \
                          List, Property, Str, Trait, Tuple
-from enable.api import KeySpec, ColorTrait
+from meap.traitsui import KeySpec, ColorTrait, RangeSelection, RangeSelectionOverlay
 
-# Chaco imports
-from chaco.api import AbstractController
-from chaco.tools.api import RangeSelection, RangeSelectionOverlay
 
 class PeakPickingOverlay(RangeSelectionOverlay):
     border_color = ColorTrait("black")

@@ -1,7 +1,7 @@
 from traits.api import (HasTraits, Str, Array, Float, CFloat, CBool,
           Bool, Enum, Instance, on_trait_change,File,Property,
           Range,Int, CInt, List, Button, Dict)
-from traitsui.api import ( View, Item, VGroup, HGroup, Group,
+from meap.traitsui import ( View, Item, VGroup, HGroup, Group,
      RangeEditor, TableEditor, Handler, Include,HSplit, EnumEditor, HSplit, Action,
      CheckListEditor, ObjectColumn )
 from traitsui.menu import OKButton, CancelButton

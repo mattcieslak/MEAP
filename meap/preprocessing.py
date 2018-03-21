@@ -3,7 +3,7 @@ from traits.api import (HasTraits, Str, Array, Float,CFloat, Dict,
           Bool, Enum, Instance, on_trait_change,File,Property,
           Range, DelegatesTo, Int, Button, List, Color,Set )
 # Needed for Tabular adapter
-from traitsui.api import (Group, HGroup, VGroup, Item, TableEditor,
+from meap.traitsui import (Group, HGroup, VGroup, Item, TableEditor,
         ObjectColumn)
 #from traitsui.table_adapter import TableAdapter
 from meap import MEAPView

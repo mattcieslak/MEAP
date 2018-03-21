@@ -1,5 +1,5 @@
 """
-Blatantly "borrowed" from the chaco annotated examples.
+Blatantly "borrowed" from the Chaco annotated examples.
 
 Lasso selection of data points
 
@@ -20,14 +20,11 @@ from meap import MEAPView
 from meap.io import PhysioData
 
 # Enthought library imports
-from enable.api import ComponentEditor
 from traits.api import HasTraits, Instance,Str, Array, Event, Tuple
-from traitsui.api import Item, Group
-from chaco.data_range_1d import DataRange1D
-
-# Chaco imports
-from chaco.api import ArrayPlotData, Plot, jet
-from chaco.tools.api import RangeSelection,RangeSelectionOverlay 
+from meap.traitsui import (Item, Group, ComponentEditor,
+        DataRange1D, ArrayPlotData, Plot, jet,RangeSelection,
+        RangeSelectionOverlay
+        )
 
 import logging
 logger = logging.getLogger(__name__)

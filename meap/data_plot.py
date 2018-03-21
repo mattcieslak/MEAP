@@ -1,10 +1,9 @@
 from traits.api import (HasTraits, Instance, on_trait_change,Property, 
                         Range, Float,DelegatesTo)
-from traitsui.api import VGroup, Item, Group, Handler
+from meap.traitsui import (VGroup, Item, Group, Handler, VPlotContainer,
+                           DataRange1D)
 from traitsui.menu import OKButton, CancelButton
-from chaco.api import VPlotContainer
 import numpy as np
-from chaco.data_range_1d import DataRange1D
 from meap import MEAPView
 from meap.io import PhysioData
 from meap.timeseries import TimeSeries

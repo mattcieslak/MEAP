@@ -11,7 +11,7 @@ from meap.physio_regressors import FMRITool
 from meap.dzdt_warping import GroupRegisterDZDT
 import os
 from traits.api import (HasTraits, Bool,  Instance, File, Button, Dict)
-from traitsui.api import Item, VGroup, spring
+from meap.traitsui import Item, VGroup, spring
 
 import logging
 logger = logging.getLogger(__name__)

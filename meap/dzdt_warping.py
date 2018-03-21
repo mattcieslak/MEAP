@@ -4,13 +4,12 @@ from traits.api import (HasTraits,  Array,  File, cached_property,
           DelegatesTo, Int, Button, List, Set, Float )
 import os
 # Needed for Tabular adapter
-from traitsui.api import Item,HGroup,VGroup, HSplit
+from meap.traitsui import Item,HGroup,VGroup, HSplit, ProgressDialog
 from traitsui.menu import OKButton, CancelButton
-from enable.component_editor import ComponentEditor
-from chaco.api import (Plot, ArrayPlotData, VPlotContainer, HPlotContainer,jet)
+from meap.traitsui import (ComponentEditor, Plot, ArrayPlotData, 
+                           VPlotContainer, HPlotContainer,jet)
 import numpy as np
 eps = np.finfo(np.float64).eps
-from pyface.api import ProgressDialog
 from meap.meap_timeseries import MEAPTimeseries
 
 from meap.beat_train import MEABeatTrain
@@ -33,6 +32,8 @@ from scipy.interpolate import UnivariateSpline
 from meap.point_marker2 import BTool, BMarker
 
 
+# Add outlier detection
+# Calculate a couple karcher means and look at how different they are from each other
 class GroupRegisterDZDT(HasTraits):
     physiodata = Instance(PhysioData)
 
@@ -333,6 +334,9 @@ class GroupRegisterDZDT(HasTraits):
             self.karcher_plotdata.set_data("karcher_mean",
                                             self.dzdt_karcher_mean)
             self.karcher_plot.request_redraw()
+            self.single_registration_plotdata.set_data("karcher_mean",
+                                            self.dzdt_karcher_mean)
+            self.single_plot.request_redraw()
         self.rp = reg_problem
 
     def _b_align_all_beats_fired(self):

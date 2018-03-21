@@ -8,17 +8,14 @@ from meap import BLOOD_RESISTIVITY, MEAPView, ENSEMBLE_SIGNALS,colors
 from meap.timeseries import TimePoint
 from meap.io import PhysioData
 from meap.point_marker2 import PointDraggingTool, DBTool, BTool, BMarker
-from pyface.api import ProgressDialog
 import numpy as np
-from traitsui.api import ( Item, VGroup, HGroup, Group,
-     TableEditor, HSplit, ObjectColumn, SetEditor )
+from meap.traitsui import ( Item, VGroup, HGroup, Group,
+     TableEditor, HSplit, ObjectColumn, SetEditor, ProgressDialog )
 from traitsui.menu import OKButton, CancelButton
 
-from chaco.api import Plot, ArrayPlotData, HPlotContainer, VPlotContainer
-from enable.component_editor import ComponentEditor
-from enable.api import Component
-from chaco.api import  DataLabel, ScatterPlot, ArrayDataSource
-
+from meap.traitsui import (ComponentEditor, Component,
+        DataLabel, ScatterPlot, ArrayDataSource,
+        Plot, ArrayPlotData, HPlotContainer, VPlotContainer)
 import logging
 logger=logging.getLogger(__name__)
 

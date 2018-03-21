@@ -6,12 +6,11 @@ import os
 import joblib
 
 # Needed for Tabular adapter
-from traitsui.api import Item,HGroup,VGroup, HSplit
+from meap.traitsui import Item,HGroup,VGroup, HSplit, ProgressDialog
 from traitsui.menu import OKButton, CancelButton
-from enable.component_editor import ComponentEditor
-from chaco.api import Plot, ArrayPlotData, VPlotContainer,jet
+from meap.traitsui import (ComponentEditor, Plot, ArrayPlotData, 
+        VPlotContainer, jet)
 import numpy as np
-from pyface.api import ProgressDialog
 
 from meap.beat_train import MEABeatTrain
 from meap.meap_timeseries import MEAPTimeseries

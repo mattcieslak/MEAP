@@ -5,14 +5,10 @@ ETSConfig.toolkit = 'qt4'
 from time import time, sleep
 import sys,os
 from traits.api import HasTraits, Button, Instance
-from traitsui.api import View, HGroup, VGroup, Item
+from meap.traitsui import View, HGroup, VGroup, Item
 from meap import MEAPView
-from chaco.api \
-    import ArrayPlotData, ImageData, Plot, PlotGraphicsContext
-from enable.component_editor import ComponentEditor
-from chaco.tools.api import PanTool, ZoomTool
-from pyface.image_resource import ImageResource
-from pyface.api import SplashScreen
+from meap.traitsui import ComponentEditor
+from meap.traitsui import ImageResource, SplashScreen
 from meap import meap_splash, __version__
 
 

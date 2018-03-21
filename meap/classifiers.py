@@ -7,7 +7,7 @@ from meap import messagebox
 from meap.io import PhysioData
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import AdaBoostRegressor
-from pyface.api import ProgressDialog
+from meap.traitsui import ProgressDialog
 from copy import deepcopy
 from meap.filters import smooth
 

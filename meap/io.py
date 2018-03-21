@@ -7,7 +7,7 @@ from traits.api import (HasTraits, CStr, Array, CFloat, CInt,Str,
                         Bool, Enum, Instance, File,Property,
                         Range,Int, List, PrototypedFrom,cached_property,
                         CBool, CArray, Set, CList)
-from traitsui.api import Item, Group
+from meap.traitsui import Item, Group
 
 from scipy.io.matlab import savemat, loadmat
 import numpy as np

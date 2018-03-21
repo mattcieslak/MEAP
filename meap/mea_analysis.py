@@ -6,7 +6,7 @@ from filters import bandpass, smooth
 import time
 import numpy as np
 
-from traitsui.api import (Group, View, Item, TableEditor,
+from meap.traitsui import (Group, View, Item, TableEditor,
         ObjectColumn, ExpressionColumn,HSplit, EnumEditor)
 from traitsui.table_column \
     import ObjectColumn, ExpressionColumn
@@ -33,8 +33,7 @@ from chaco.tools.line_inspector import LineInspector
 from chaco.scatterplot import ScatterPlot
 from chaco.lineplot import LinePlot
 
-from enable.component_editor import ComponentEditor
-from enable.api import ColorTrait
+from meap.traitsui import ComponentEditor, ColorTrait
 from chaco.api import marker_trait
 from scipy.interpolate import interp1d
 from sklearn.decomposition import FastICA

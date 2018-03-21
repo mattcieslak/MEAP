@@ -18,13 +18,9 @@ import time
 import numpy as np
 
 # Needed for Tabular adapter
-from traitsui.api import Group, Item, VSplit, VGroup, HGroup
-from traitsui.menu import OKButton, CancelButton
-from chaco.api import ArrayPlotData,Plot, jet
-#from chaco.tools.api import PanTool, ZoomTool
-from chaco.scatterplot import ScatterPlot
-from chaco.tools.api import RangeSelectionOverlay, ZoomTool
-from enable.component_editor import ComponentEditor
+from meap.traitsui import ( Group, Item, VSplit, VGroup, HGroup,
+    OKButton, CancelButton, ArrayPlotData, Plot, jet, ScatterPlot,
+    RangeSelectionOverlay, ZoomTool, ComponentEditor)
 
 # For the 3d peak window
 from meap.peak_picker import PeakPickingTool, PeakPickingOverlay
