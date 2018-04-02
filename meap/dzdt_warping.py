@@ -7,7 +7,7 @@ import os
 from meap.gui_tools import Item,HGroup,VGroup, HSplit, ProgressDialog
 from traitsui.menu import OKButton, CancelButton
 from meap.gui_tools import (ComponentEditor, Plot, ArrayPlotData, 
-                           VPlotContainer, HPlotContainer,jet)
+                           VPlotContainer, HPlotContainer,jet, fail)
 import numpy as np
 eps = np.finfo(np.float64).eps
 from meap.meap_timeseries import MEAPTimeseries
@@ -31,6 +31,20 @@ from scipy.interpolate import UnivariateSpline
 
 from meap.point_marker2 import BTool, BMarker
 
+from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.metrics import silhouette_samples
+
+from scipy.cluster.hierarchy import complete, dendrogram
+
+def fisher_rao_dist(psi1, psi2):
+    """ Equation 4 from Kurtek 2017"""
+    return np.nan_to_num(np.arccos(np.inner(psi1,psi2)))
+
+# Rescales the cluster mean to be on the great circle
+def rescale_cluster_mean(cluster_mean):
+    densities = cluster_mean **2
+    scaled_densities = densities / densities.sum()
+    return np.sqrt(scaled_densities)
 
 # Add outlier detection
 # Calculate a couple karcher means and look at how different they are from each other
@@ -48,19 +62,25 @@ class GroupRegisterDZDT(HasTraits):
     srvf_use_moving_ensembled = DelegatesTo("physiodata")
     bspline_before_warping = DelegatesTo("physiodata")
     original_functions = Array
+    srvf_t_min = DelegatesTo("physiodata")
+    srvf_t_max = DelegatesTo("physiodata")
 
-    # Holds indices of beats used to calculate karcher mean
+    # Holds indices of beats used to calculate initial Karcher mean
     dzdt_karcher_mean_inputs = DelegatesTo("physiodata")
     dzdt_karcher_mean_over_iterations = DelegatesTo("physiodata")
     dzdt_num_inputs_to_group_warping = DelegatesTo("physiodata")
     srvf_iteration_distances = DelegatesTo("physiodata")
     srvf_iteration_energy = DelegatesTo("physiodata")
-    karcher_mean_calculated = Bool(False)
-    all_beats_registered = Bool(False)
-    srvf_t_min = DelegatesTo("physiodata")
-    srvf_t_max = DelegatesTo("physiodata")
-
-
+    
+    # For calculating multiple modes
+    all_beats_registered_to_initial = Bool(False)
+    all_beats_registered_to_mode = Bool(False)
+    n_modes = DelegatesTo("physiodata")    
+    max_kmeans_iterations = DelegatesTo("physiodata")
+    mode_dzdt_karcher_means = DelegatesTo("physiodata")
+    mode_cluster_assignment = DelegatesTo("physiodata")
+    mode_dzdt_srvf_karcher_means = DelegatesTo("physiodata") 
+    
     # graphics items
     karcher_plot = Instance(Plot, transient=True)
     registration_plot = Instance(HPlotContainer, transient=True)
@@ -104,9 +124,10 @@ class GroupRegisterDZDT(HasTraits):
         self.select_new_samples()
 
     def _init_warps(self):
+        """ For loading warps from mea.mat """
         if self.dzdt_warping_functions.shape[0] == \
                                 self.original_functions.shape[0]:
-            self.all_beats_registered = True
+            self.all_beats_registered_to_mode = True
             self._forward_warp_beats()
 
     def _global_ensemble_default(self):
@@ -166,7 +187,7 @@ class GroupRegisterDZDT(HasTraits):
         self.currently_editing = "none"
 
     def _b_update_b_point_fired(self):
-        if not self.all_beats_registered:
+        if not self.all_beats_registered_to_mode:
             messagebox("Click Warp all first.")
             return
         self.currently_editing = "b"
@@ -174,7 +195,7 @@ class GroupRegisterDZDT(HasTraits):
         self.karcher_plot.title = "Select B Point"
 
     def _b_update_x_point_fired(self):
-        if not self.all_beats_registered:
+        if not self.all_beats_registered_to_mode:
             messagebox("Click Warp all first.")
             return
         self.currently_editing = "x"
@@ -243,7 +264,8 @@ class GroupRegisterDZDT(HasTraits):
                     line_width=2,color="maroon")
 
 
-        if self.all_beats_registered:
+        if self.all_beats_registered_to_initial or \
+           self.all_beats_registered_to_mode:
             image_data = self.registered_functions.copy()
         else:
             image_data = self.original_functions.copy()
@@ -288,7 +310,8 @@ class GroupRegisterDZDT(HasTraits):
     def params_edited(self):
         self.dirty = True
         self.karcher_mean_calculated = False
-        self.all_beats_registered = False
+        self.all_beats_registered_to_initial = False
+        self.all_beats_registered_to_mode = False
         self._update_original_functions()
 
     def _update_original_functions(self):
@@ -316,6 +339,9 @@ class GroupRegisterDZDT(HasTraits):
         self.calculate_karcher_mean()
 
     def calculate_karcher_mean(self):
+        """
+        Calculates an initial Karcher Mean.
+        """
         reg_prob = RegistrationProblem(
             self.original_functions[self.dzdt_karcher_mean_inputs].T,
             sample_times=self.sample_times,
@@ -340,9 +366,112 @@ class GroupRegisterDZDT(HasTraits):
         self.rp = reg_problem
 
     def _b_align_all_beats_fired(self):
-        self.align_all_beats()
+        self.align_all_beats_to_initial()
         
-    def align_all_beats(self):
+    def detect_modes(self):
+        """
+        Uses the SRD-based clustering method described in Kurtek 2017
+        """
+        if not self.karcher_mean_calculated:
+            fail("Must calculate an initial Karcher mean first")
+            return
+        if not self.all_beats_registered_to_initial:
+            fail("All beats must be registered to the initial Karcher mean")
+            return
+        
+        # Calculate the SRDs
+        SRDs = np.sqrt(np.diff(self.dzdt_warping_functions,axis=0))
+        SRDs[np.logical_not(np.isfinite(SRDs))] = 0
+        srd_pairwise = pairwise_distances(SRDs.T,metric=fisher_rao_dist)
+        tri = srd_pairwise[np.triu_indices_from(srd_pairwise,1)]
+        linkage = complete(tri)
+        
+        # Performs an iteration of k-means
+        def cluster_karcher_means(initial_assignments):
+            cluster_means = []
+            cluster_ids = np.unique(initial_assignments)
+            warping_functions = np.zeros_like(SRDs)
+        
+            # Calculate a Karcher mean for each cluster
+            for cluster_id in cluster_ids:
+                print "Cluster ID:", cluster_id
+                cluster_id_mask = initial_assignments == cluster_id
+                cluster_srds = SRDs[:,cluster_id_mask]
+        
+                # If there is only a single SRD in this cluster, it is the mean
+                if cluster_id_mask.sum() == 1:
+                    cluster_means.append(cluster_SRDs)
+                    continue
+        
+                # Run group registration to get Karcher mean
+                cluster_reg = RegistrationProblem(
+                        cluster_srds,
+                        sample_times=np.arange(SRDs.shape[0], dtype=np.float),
+                        max_karcher_iterations = self.srvf_max_karcher_iterations,
+                        lambda_value = self.srvf_lambda,
+                        update_min = self.srvf_update_min 
+                )
+                cluster_reg.run_registration_parallel()
+                cluster_means.append(cluster_reg.function_karcher_mean)
+                warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps
+        
+            scaled_cluster_means = [rescale_cluster_mean(cm) for cm in cluster_means]
+        
+            # There are now k cluster means, which is closest for each SRD?
+            # Also save its distance to its cluster's Karcher mean
+            srd_cluster_assignments = []
+            srd_cluster_distances = []
+            for srd in SRDs.T:
+                distances = [fisher_rao_dist(cluster_mean,srd) for cluster_mean in scaled_cluster_means]
+                cluster_num = cluster_ids[np.argmin(distances)]
+                srd_cluster_assignments.append(cluster_num)
+                srd_cluster_distances.append(fisher_rao_dist(cluster_means[cluster_num-1],srd))
+        
+            return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2, scaled_cluster_means, warping_functions
+        
+        # Iterate until assignments stabilize
+        last_assignments = fcluster(linkage, self.n_modes, criterion="maxclust")
+        stabilized = False
+        n_iters = 0
+        old_assignments = [last_assignments]
+        old_means = []
+        while not stabilized and n_iters < self.max_kmeans_iterations:
+            assignments, distances, cluster_means, warping_funcs = cluster_karcher_means(
+                last_assignments)
+            stabilized = np.all(last_assignments == assignments)
+            last_assignments = assignments.copy()
+            old_assignments.append(last_assignments)
+            old_means.append(cluster_means)
+            n_iters += 1            
+            
+        # Finalize the clusters by aligning all the functions to the cluster mean
+        # Iterate until assignments stabilize
+        cluster_means = []
+        cluster_ids = np.unique(assignments)
+        warping_functions = np.zeros_like(original_functions)
+        # Calculate a Karcher mean for each cluster
+        for cluster_id in cluster_ids:
+            cluster_id_mask = initial_assignments == cluster_id
+            cluster_funcs = self.original_functions.T[:,cluster_id_mask]
+        
+            # If there is only a single SRD in this cluster, it is the mean
+            if cluster_id_mask.sum() == 1:
+                cluster_means.append(cluster_funcs)
+                continue
+        
+            # Run group registration to get Karcher mean
+            cluster_reg = RegistrationProblem(
+                    cluster_funcs,
+                    sample_times=np.arange(self.original_functions.shape[1], dtype=np.float),
+                    max_karcher_iterations = self.srvf_max_karcher_iterations,
+                    lambda_value = self.srvf_lambda,
+                    update_min = self.srvf_update_min
+            )
+            cluster_reg.run_registration_parallel()
+            cluster_means.append(cluster_reg.function_karcher_mean)
+            warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
+        
+    def align_all_beats_to_initial(self):
         if not self.karcher_mean_calculated:
             logger.warn("Calculate Karcher mean first")
             return
@@ -393,7 +522,7 @@ class GroupRegisterDZDT(HasTraits):
         if self.interactive:
             progress.update(k+1)
 
-        self.all_beats_registered = True
+        self.all_beats_registered_to_initial = True
     
 
     def _point_plots_default(self):

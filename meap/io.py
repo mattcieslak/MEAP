@@ -154,6 +154,9 @@ class MEAPConfig(HasTraits):
     srvf_t_min = CInt(200)
     srvf_t_max = CInt(900)
     bspline_before_warping = CBool(True)
+    n_modes = CInt(5)
+    max_kmeans_iterations = CInt(5)
+    
 
 
 def load_config(config_path):
@@ -794,17 +797,22 @@ class PhysioData(HasTraits):
     dzdt_srvf_karcher_mean = Array
     dzdt_karcher_mean = Array
     dzdt_warping_functions = Array
-    # Holds indices of beats used to calculate karcher mean
+    
+    # Holds data related to initial karcher mean
     dzdt_karcher_mean_inputs = Array
     dzdt_karcher_mean_over_iterations = Array
     srvf_iteration_distances = Array
     srvf_iteration_energy = Array
-
-
+    
+    # Data related to the multiple modes
+    n_modes = PrototypedFrom("config")
+    max_kmeans_iterations = PrototypedFrom("config")
+    mode_dzdt_karcher_means = Array
+    mode_cluster_assignment = Array 
+    mode_dzdt_srvf_karcher_means = Array
 
     # Storing and accessing the bpoint classifier
     bpoint_classifier_file = File
-
 
     def save(self,outfile):
         # Populate matfile-friendly data structures for censoring regions
