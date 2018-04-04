@@ -428,7 +428,8 @@ class GroupRegisterDZDT(HasTraits):
                 distances = [fisher_rao_dist(cluster_mean,srd) for cluster_mean in scaled_cluster_means]
                 cluster_num = cluster_ids[np.argmin(distances)]
                 srd_cluster_assignments.append(cluster_num)
-                srd_cluster_distances.append(fisher_rao_dist(cluster_means[cluster_num-1],srd))
+                corresponding_mean = cluster_means[cluster_ids.index(cluster_num)]
+                srd_cluster_distances.append(fisher_rao_dist(corresponding_mean, srd))
         
             return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2, scaled_cluster_means, warping_functions
         
