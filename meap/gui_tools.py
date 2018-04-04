@@ -17,17 +17,28 @@ Running MEAP without a graphics server is tricky.
 Here we check if we can import traitsui. If not we 
 make dummy classes so the rest of the library still
 works.
-
 """
-try:
-    from traits.etsconfig.api import ETSConfig
-    ETSConfig.toolkit = 'qt4'
-    from traitsui.api import (View, HGroup, VGroup,
-        Group, Item, Action, ObjectColumn, TableEditor,
-        HSplit, VSplit, SetEditor, Handler, ExpressionColumn,
-        EnumEditor, RangeEditor, Include, CheckListEditor,
-        spring
-        )
+has_ui = False
+
+if sys.platform.startswith("linux"):
+    if os.getenv("DISPLAY"):
+        has_ui = True
+
+if has_ui:
+    try:
+        from traits.etsconfig.api import ETSConfig
+        ETSConfig.toolkit = 'qt4'
+        from traitsui.api import (View, HGroup, VGroup,
+            Group, Item, Action, ObjectColumn, TableEditor,
+            HSplit, VSplit, SetEditor, Handler, ExpressionColumn,
+            EnumEditor, RangeEditor, Include, CheckListEditor,
+            spring
+            )
+
+    except Exception,e:
+        has_ui = False
+
+if has_ui:
     from traitsui.menu import OKButton, CancelButton
     from traitsui.message import Message
     
@@ -79,9 +90,8 @@ try:
     def fail(msg,interactive=False):
         logger.critical(msg)
            
-except Exception, e:
-    logger.info(e)
     
+else:
     # Variables
     icon=None
     meap_splash = None
