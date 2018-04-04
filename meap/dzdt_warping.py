@@ -35,6 +35,8 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics import silhouette_samples
 
 from scipy.cluster.hierarchy import complete, dendrogram
+from scipy.cluster.hierarchy import fcluster
+
 
 def fisher_rao_dist(psi1, psi2):
     """ Equation 4 from Kurtek 2017"""
@@ -380,8 +382,14 @@ class GroupRegisterDZDT(HasTraits):
             return
         
         # Calculate the SRDs
-        SRDs = np.sqrt(np.diff(self.dzdt_warping_functions,axis=0))
-        SRDs[np.logical_not(np.isfinite(SRDs))] = 0
+        original_functions = self.original_functions.T
+        warps = self.dzdt_warping_functions.T
+        wmax = warps.max()
+        wmin = warps.min()
+        warps = (warps - wmin) / (wmax - wmin)
+        densities = np.diff(warps,axis=0)
+        SRDs = np.sqrt(densities)        
+        # pairwise distances
         srd_pairwise = pairwise_distances(SRDs.T,metric=fisher_rao_dist)
         tri = srd_pairwise[np.triu_indices_from(srd_pairwise,1)]
         linkage = complete(tri)
@@ -400,7 +408,7 @@ class GroupRegisterDZDT(HasTraits):
         
                 # If there is only a single SRD in this cluster, it is the mean
                 if cluster_id_mask.sum() == 1:
-                    cluster_means.append(cluster_SRDs)
+                    cluster_means.append(cluster_srds)
                     continue
         
                 # Run group registration to get Karcher mean
@@ -436,6 +444,7 @@ class GroupRegisterDZDT(HasTraits):
         old_assignments = [last_assignments]
         old_means = []
         while not stabilized and n_iters < self.max_kmeans_iterations:
+            logger.info("Iteration %d", n_iters)
             assignments, distances, cluster_means, warping_funcs = cluster_karcher_means(
                 last_assignments)
             stabilized = np.all(last_assignments == assignments)
@@ -449,9 +458,10 @@ class GroupRegisterDZDT(HasTraits):
         cluster_means = []
         cluster_ids = np.unique(assignments)
         warping_functions = np.zeros_like(original_functions)
+        self.registered_functions = np.zeros_like(self.original_functions)
         # Calculate a Karcher mean for each cluster
         for cluster_id in cluster_ids:
-            cluster_id_mask = initial_assignments == cluster_id
+            cluster_id_mask = assignments == cluster_id
             cluster_funcs = self.original_functions.T[:,cluster_id_mask]
         
             # If there is only a single SRD in this cluster, it is the mean
@@ -470,6 +480,8 @@ class GroupRegisterDZDT(HasTraits):
             cluster_reg.run_registration_parallel()
             cluster_means.append(cluster_reg.function_karcher_mean)
             warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
+            self.registered_functions[cluster_id_mask] = cluster_reg.registered_functions.T        
+        self.all_beats_registered_to_mode = True
         
     def align_all_beats_to_initial(self):
         if not self.karcher_mean_calculated:
