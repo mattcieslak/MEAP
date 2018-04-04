@@ -58,7 +58,7 @@ class GroupRegisterDZDT(HasTraits):
     dzdt_warping_functions = DelegatesTo("physiodata")
     srvf_use_moving_ensembled = DelegatesTo("physiodata")
     bspline_before_warping = DelegatesTo("physiodata")
-    original_functions = Array
+    dzdt_functions_to_warp = DelegatesTo("physiodata")
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
 
@@ -112,8 +112,8 @@ class GroupRegisterDZDT(HasTraits):
         # Process dZdt data before srvf analysis
         self._update_original_functions()
 
-        self.n_functions = self.original_functions.shape[0]
-        self.n_samples = self.original_functions.shape[1]
+        self.n_functions = self.dzdt_functions_to_warp.shape[0]
+        self.n_samples = self.dzdt_functions_to_warp.shape[1]
         self.karcher_mean_time = self.sample_times + self.srvf_t_min \
                                     - self.physiodata.dzdt_pre_peak
         self._init_warps()
@@ -123,7 +123,7 @@ class GroupRegisterDZDT(HasTraits):
     def _init_warps(self):
         """ For loading warps from mea.mat """
         if self.dzdt_warping_functions.shape[0] == \
-                                self.original_functions.shape[0]:
+                                self.dzdt_functions_to_warp.shape[0]:
             self.all_beats_registered_to_mode = True
             self._forward_warp_beats()
 
@@ -265,7 +265,7 @@ class GroupRegisterDZDT(HasTraits):
            self.all_beats_registered_to_mode:
             image_data = self.registered_functions.copy()
         else:
-            image_data = self.original_functions.copy()
+            image_data = self.dzdt_functions_to_warp.copy()
 
         # Create a plot of all the functions registered or not
         self.all_registration_plotdata = ArrayPlotData(
@@ -284,17 +284,17 @@ class GroupRegisterDZDT(HasTraits):
         gam = self.dzdt_warping_functions - self.srvf_t_min
         gam = gam / (self.srvf_t_max - self.srvf_t_min)
 
-        aligned_functions = np.zeros_like(self.original_functions)
+        aligned_functions = np.zeros_like(self.dzdt_functions_to_warp)
         t = self.sample_times
         for k in range(self.n_functions):
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
-                                             t, self.original_functions[k])
+                                             t, self.dzdt_functions_to_warp[k])
 
         self.registered_functions = aligned_functions
 
     @on_trait_change("dzdt_num_inputs_to_group_warping")
     def select_new_samples(self):
-        nbeats = self.original_functions.shape[0]
+        nbeats = self.dzdt_functions_to_warp.shape[0]
         nsamps = min(self.dzdt_num_inputs_to_group_warping, nbeats)
         self.dzdt_karcher_mean_inputs = np.random.choice(nbeats,size=nsamps,replace=False)
 
@@ -314,7 +314,7 @@ class GroupRegisterDZDT(HasTraits):
     def _update_original_functions(self):
         logger.info("updating functions to register")
         # offset from t=0 at R peak
-        self.original_functions = self.physiodata.mea_dzdt_matrix[
+        self.dzdt_functions_to_warp = self.physiodata.mea_dzdt_matrix[
                                     : , self.srvf_t_min:self.srvf_t_max] if \
                 self.srvf_use_moving_ensembled else self.physiodata.dzdt_matrix[
                                     : , self.srvf_t_min:self.srvf_t_max]
@@ -323,13 +323,13 @@ class GroupRegisterDZDT(HasTraits):
 
         if self.bspline_before_warping:
             logger.info("Smoothing inputs with B-Splines")
-            self.original_functions = np.row_stack([ UnivariateSpline(
+            self.dzdt_functions_to_warp = np.row_stack([ UnivariateSpline(
                 self.sample_times, func, s=0.05)(self.sample_times) \
-                for func in self.original_functions]
+                for func in self.dzdt_functions_to_warp]
             )
         if self.interactive:
             self.all_registration_plotdata.set_data("image_data",
-                                                    self.original_functions.copy())
+                                                    self.dzdt_functions_to_warp.copy())
             self.all_plot.request_redraw()
 
     def _b_calculate_karcher_mean_fired(self):
@@ -340,7 +340,7 @@ class GroupRegisterDZDT(HasTraits):
         Calculates an initial Karcher Mean.
         """
         reg_prob = RegistrationProblem(
-            self.original_functions[self.dzdt_karcher_mean_inputs].T,
+            self.dzdt_functions_to_warp[self.dzdt_karcher_mean_inputs].T,
             sample_times=self.sample_times,
             max_karcher_iterations = self.srvf_max_karcher_iterations,
             lambda_value = self.srvf_lambda,
@@ -377,7 +377,7 @@ class GroupRegisterDZDT(HasTraits):
             return
         
         # Calculate the SRDs
-        original_functions = self.original_functions.T
+        dzdt_functions_to_warp = self.dzdt_functions_to_warp.T
         warps = self.dzdt_warping_functions.T
         wmax = warps.max()
         wmin = warps.min()
@@ -452,12 +452,12 @@ class GroupRegisterDZDT(HasTraits):
         # Iterate until assignments stabilize
         cluster_means = []
         cluster_ids = np.unique(assignments)
-        warping_functions = np.zeros_like(original_functions)
-        self.registered_functions = np.zeros_like(self.original_functions)
+        warping_functions = np.zeros_like(dzdt_functions_to_warp)
+        self.registered_functions = np.zeros_like(self.dzdt_functions_to_warp)
         # Calculate a Karcher mean for each cluster
         for cluster_id in cluster_ids:
             cluster_id_mask = assignments == cluster_id
-            cluster_funcs = self.original_functions.T[:,cluster_id_mask]
+            cluster_funcs = self.dzdt_functions_to_warp.T[:,cluster_id_mask]
         
             # If there is only a single SRD in this cluster, it is the mean
             if cluster_id_mask.sum() == 1:
@@ -467,7 +467,7 @@ class GroupRegisterDZDT(HasTraits):
             # Run group registration to get Karcher mean
             cluster_reg = RegistrationProblem(
                     cluster_funcs,
-                    sample_times=np.arange(self.original_functions.shape[1], dtype=np.float),
+                    sample_times=np.arange(self.dzdt_functions_to_warp.shape[1], dtype=np.float),
                     max_karcher_iterations = self.srvf_max_karcher_iterations,
                     lambda_value = self.srvf_lambda,
                     update_min = self.srvf_update_min
@@ -493,13 +493,13 @@ class GroupRegisterDZDT(HasTraits):
 
         template_func = self.dzdt_srvf_karcher_mean
         normed_template_func = template_func / np.linalg.norm(template_func)
-        fy, fx = np.gradient(self.original_functions.T, 1, 1)
+        fy, fx = np.gradient(self.dzdt_functions_to_warp.T, 1, 1)
         srvf_functions = (fy / np.sqrt(np.abs(fy) + eps)).T
 
-        gam = np.zeros(self.original_functions.shape, dtype=np.float)
-        aligned_functions = self.original_functions.copy()
+        gam = np.zeros(self.dzdt_functions_to_warp.shape, dtype=np.float)
+        aligned_functions = self.dzdt_functions_to_warp.copy()
         logger.info("aligned_functions %d", id(aligned_functions))
-        logger.info("self.original_functions %d", id(self.original_functions))
+        logger.info("self.dzdt_functions_to_warp %d", id(self.dzdt_functions_to_warp))
 
         t = self.sample_times
         for k in range(self.n_functions):
@@ -508,7 +508,7 @@ class GroupRegisterDZDT(HasTraits):
             gam0 = np.interp(self.sample_times, T, G)
             gam[k] = (gam0-gam0[0])/(gam0[-1]-gam0[0])  # change scale
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
-                                             t, self.original_functions[k])
+                                             t, self.dzdt_functions_to_warp[k])
 
             if self.interactive:
 

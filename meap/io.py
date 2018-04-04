@@ -152,7 +152,7 @@ class MEAPConfig(HasTraits):
     srvf_use_moving_ensembled = CBool(False)
     dzdt_num_inputs_to_group_warping = CInt(25)
     srvf_t_min = CInt(200)
-    srvf_t_max = CInt(900)
+    srvf_t_max = CInt(550)
     bspline_before_warping = CBool(True)
     n_modes = CInt(5)
     max_kmeans_iterations = CInt(5)
@@ -797,6 +797,7 @@ class PhysioData(HasTraits):
     dzdt_srvf_karcher_mean = Array
     dzdt_karcher_mean = Array
     dzdt_warping_functions = Array
+    dzdt_functions_to_warp = Array
     
     # Holds data related to initial karcher mean
     dzdt_karcher_mean_inputs = Array
