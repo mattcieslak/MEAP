@@ -10,8 +10,8 @@ from meap.io import PhysioData
 from meap.point_marker2 import PointDraggingTool, DBTool, BTool, BMarker
 import numpy as np
 from meap.gui_tools import ( MEAPView, Item, VGroup, HGroup, Group,
-     TableEditor, HSplit, ObjectColumn, SetEditor, ProgressDialog )
-from traitsui.menu import OKButton, CancelButton
+     TableEditor, HSplit, ObjectColumn, SetEditor, ProgressDialog,
+     OKButton, CancelButton)
 
 from meap.gui_tools import (ComponentEditor, Component,
         DataLabel, ScatterPlot, ArrayDataSource,

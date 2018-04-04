@@ -4,7 +4,7 @@ import os
 import sys
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-from traits.api import Str
+from traits.api import Str, HasTraits
 
 # Are we bundled?
 if getattr( sys, 'frozen', False ) :
@@ -101,6 +101,9 @@ else:
         def __init__(self,*args, **kwargs):
             pass
         def edit_traits(self,*args, **kwargs):
+            pass
+        @classmethod
+        def add_class_trait(*args, **kwargs):
             pass
         
     class MEAPView(TraitsUIDummy):
