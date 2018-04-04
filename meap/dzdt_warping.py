@@ -476,6 +476,8 @@ class GroupRegisterDZDT(HasTraits):
             cluster_means.append(cluster_reg.function_karcher_mean)
             warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
             self.registered_functions[cluster_id_mask] = cluster_reg.registered_functions.T        
+        self.mode_dzdt_karcher_means = np.row_stack(cluster_means)
+        self.mode_cluster_assignment = assignments
         self.all_beats_registered_to_mode = True
         
     def align_all_beats_to_initial(self):
