@@ -392,7 +392,7 @@ class GroupRegisterDZDT(HasTraits):
         # Performs an iteration of k-means
         def cluster_karcher_means(initial_assignments):
             cluster_means = []
-            cluster_ids = np.unique(initial_assignments)
+            cluster_ids = np.unique(initial_assignments).tolist()
             warping_functions = np.zeros_like(SRDs)
         
             # Calculate a Karcher mean for each cluster
