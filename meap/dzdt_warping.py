@@ -5,15 +5,12 @@ from traits.api import (HasTraits,  Array,  File, cached_property,
 import os
 # Needed for Tabular adapter
 from meap.gui_tools import Item,HGroup,VGroup, HSplit, ProgressDialog
-from traitsui.menu import OKButton, CancelButton
 from meap.gui_tools import (ComponentEditor, Plot, ArrayPlotData, 
-                           VPlotContainer, HPlotContainer,jet, fail)
+                           VPlotContainer, HPlotContainer,jet, fail,
+                           OKButton, CancelButton)
 import numpy as np
 eps = np.finfo(np.float64).eps
-from meap.meap_timeseries import MEAPTimeseries
 
-from meap.beat_train import MEABeatTrain
-from meap.meap_timeseries import MEAPTimeseries
 from meap.beat import GlobalEnsembleAveragedHeartBeat
 import time
 from meap.gui_tools import MEAPView, messagebox
@@ -24,9 +21,7 @@ logger = logging.getLogger(__name__)
 
 from srvf_register import RegistrationProblem
 from srvf_register.dynamic_programming_q2 import dp
-from srvf_register.SqrtMeanInverse import SqrtMeanInverse
 
-from scipy.integrate import trapz
 from scipy.interpolate import UnivariateSpline
 
 from meap.point_marker2 import BTool, BMarker
@@ -35,6 +30,8 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics import silhouette_samples
 
 from scipy.cluster.hierarchy import complete, dendrogram
+from scipy.cluster.hierarchy import fcluster
+
 
 def fisher_rao_dist(psi1, psi2):
     """ Equation 4 from Kurtek 2017"""
