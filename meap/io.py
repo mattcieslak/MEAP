@@ -209,8 +209,8 @@ class PhysioData(HasTraits):
     Contains the parameters needed to run a MEAP session
     """
 
-    available_widgets = Property(List)
-    def _get_available_widgets(self):
+    available_widgets = Instance(list)
+    def _available_widgets_default(self):
         available_panels = ["Annotation"]
         if "dzdt" in self.contents and "z0" in self.contents:
             available_panels.append("ICG B Point")
@@ -634,6 +634,11 @@ class PhysioData(HasTraits):
     def _dx_indices_default(self):
         return np.zeros_like(self.peak_indices)
 
+    # Holds B points in the Karcher modes
+    karcher_b_indices = Instance(np.ndarray)
+    def _karcher_b_indices_default(self):
+        return np.zeros(self.n_modes)
+    
     # --- Subject information
     subject_age = CFloat(0.)
     subject_gender = Enum("M","F")

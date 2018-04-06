@@ -142,6 +142,8 @@ class TimePoint(HasTraits):
         # For fast time-to-index conversion
         if self.applies_to in ("systolic", "diastolic", "bp"):
             self.offset = self.physiodata.bp_pre_peak
+        elif self.applies_to == "dzdt_karcher":
+            self.offset = self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
         else:
             self.offset = getattr(self.physiodata,self.applies_to + "_pre_peak")
 
@@ -239,6 +241,44 @@ class TimePoint(HasTraits):
 
 
 
+class KarcherTimePoint(TimePoint):
+    def __init__(self,**traits):
+        """
+        
+        """
+        super(KarcherTimePoint,self).__init__(**traits)
+        self.physiodata = self.beat.physiodata
+        index_array = self.physiodata.karcher_b_indices
+        self.offset = self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
+        # Initialize to whatever's in the physiodata array
+        if self.beat.id is not None and self.beat.id > -1:
+            try:
+                self.set_index(index_array[self.beat.id])
+            except Exception, e:
+                logger.warn("Error setting %s:\n%s",self.name, e)
+                
+    def mark_similar(self,*args,**kwargs):
+        pass
+
+    def set_time(self,time):
+        """
+        If all we have is a time, adjust the index and value to match
+        """
+        self.time = time
+        self.set_index(int(time) + self.offset)
+
+    def set_index(self,index):
+        """
+        If all we have is a time, adjust the index and value to match
+        """
+        ts = self.beat.dzdt_signal
+        index_array = getattr(self.physiodata,"karcher_b_indices")
+        self.time = float(index) - self.offset
+        self.index = index
+        self.value = ts[index]
+        index_array[self.beat.id] = self.index
+
+            
 class TimeSeries(HasTraits):
     # Holds data
     name=Str

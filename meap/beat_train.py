@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-from traits.api import (HasTraits, Array, Button,
+from traits.api import (HasTraits, Array, Button, Int,
           Bool, Enum, Instance, on_trait_change,Property,
           DelegatesTo, Button, List, cached_property, Button )
-from beat import HeartBeat, GlobalEnsembleAveragedHeartBeat
+from beat import HeartBeat, GlobalEnsembleAveragedHeartBeat, KarcherHeartBeat
 #from meap import TimeSeries
 from meap.io import PhysioData
 
@@ -45,8 +45,6 @@ class BeatTrain(HasTraits):
     # Holds the peak labels for each detected beat
     physiodata = Instance(PhysioData)
     # stacks of waveforms
-    z0_matrix = DelegatesTo("physiodata")
-    ecg_matrix = DelegatesTo("physiodata")
     dzdt_matrix = DelegatesTo("physiodata")
     bp_matrix = DelegatesTo("physiodata")
     systolic_matrix = DelegatesTo("physiodata")
@@ -57,10 +55,12 @@ class BeatTrain(HasTraits):
     censored_secs_before = DelegatesTo("physiodata")
     b_order_plots = Button(label="Change Editor Layout")
 
-    available_widgets = DelegatesTo("physiodata", editor=SetEditor(
-        ordered=True,
-        left_column_title='Available Panels',
-        right_column_title='Displayed Panels'))
+    available_widgets = DelegatesTo('physiodata',
+        editor=SetEditor(
+            ordered=True,
+            left_column_title='Available Panels',
+            right_column_title='Displayed Panels')
+        )
 
     # Physio measures derived by self.beats
     lvet = DelegatesTo("physiodata")
@@ -451,8 +451,6 @@ class BeatTrain(HasTraits):
 
 class MEABeatTrain(BeatTrain):
     # stacks of waveforms
-    z0_matrix = DelegatesTo("physiodata", "mea_z0_matrix")
-    ecg_matrix = DelegatesTo("physiodata", "mea_ecg_matrix")
     dzdt_matrix = DelegatesTo("physiodata", "mea_dzdt_matrix")
     bp_matrix = DelegatesTo("physiodata", "mea_bp_matrix")
     systolic_matrix = DelegatesTo("physiodata","mea_systolic_matrix")
@@ -475,4 +473,46 @@ class MEABeatTrain(BeatTrain):
         get its signals reset to be up to date with the physiodata object
         """
         logger.info("Resetting signal data in MEA beats")
-        self.set_beats(self._beats_default())
+        self.set_beats(self._beats_default())        
+        
+class ModeKarcherBeatTrain(BeatTrain):
+    auto_calc_outliers = Bool(False)
+    n_modes = Property(Int)
+    plot_contents = "PEP"
+    
+    
+    def _get_n_modes(self):
+        if self.physiodata is None or \
+           self.physiodata.mode_dzdt_karcher_means.size == 0 :
+            return 0
+        return min(self.physiodata.mode_dzdt_karcher_means.shape[0],
+                   self.physiodata.n_modes)
+    
+    # Disable outlier plot for this data
+    def calculate_outliers(self):
+        pass
+    def outlier_plot_default(self):    
+        return Plot({})
+    
+    def update_param_plot(self):
+        pass
+    
+    def __len__(self):
+        return self.n_modes
+    
+    def _beats_default(self):
+        if self.n_modes == 0:
+            return []
+        return [KarcherHeartBeat(id=n, physiodata=self.physiodata) \
+                    for n in range(self.n_modes)]
+    
+    def _parameter_plot_data_default(self):
+        return ArrayPlotData(
+                    beat_id=np.array([b.id for b in self.beats]),
+                    param_value=np.array([b.get_pep() for b in self.beats]))
+    
+    def update_param_plot(self):
+        grabber_func = lambda x : x.get_pep()
+        if hasattr(self,"parameter_plot_data"):
+            self.parameter_plot_data.set_data("param_value",
+                np.array([b.get_pep() for b in self.beats]))

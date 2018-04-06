@@ -5,7 +5,7 @@ from traits.api import (HasTraits, Str, Array, Float,
           Either,CInt)
 from meap.filters import smooth, normalize
 from meap import BLOOD_RESISTIVITY, ENSEMBLE_SIGNALS, colors
-from meap.timeseries import TimePoint
+from meap.timeseries import TimePoint, KarcherTimePoint
 from meap.io import PhysioData
 from meap.point_marker2 import PointDraggingTool, DBTool, BTool, BMarker
 import numpy as np
@@ -632,7 +632,8 @@ class HeartBeat(HasTraits):
         Instead of defining these in __init__, only
         construct the plots when a ui is requested
         """
-        karcher_mean = self.physiodata.dzdt_karcher_mean
+        karcher_mean = self.physiodata.mode_dzdt_karcher_means[
+                        self.physiodata.mode_cluster_assignments[self.id]-1]
         karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
         karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
         
@@ -786,7 +787,7 @@ class HeartBeat(HasTraits):
 
         # Set a limited window for some of the plots
         xmin = self.r.time
-        xmax = self.c.time
+        xmax = self.dzdt_time[np.argmax(self.dzdt_signal)]
         for plt in [main_plot,d1_plot,d2_plot]:
             plt.index_mapper.range.low = xmin
             plt.index_mapper.range.high = xmax
@@ -1008,6 +1009,9 @@ class HeartBeat(HasTraits):
 TimePoint.add_class_trait("beat",Instance(HeartBeat))
 PointDraggingTool.add_class_trait("beat",Instance(HeartBeat))
 
+
+
+
 class EnsembleAveragedHeartBeat(HeartBeat):
     marking_strategy = "custom points"
     subset = Array
@@ -1114,3 +1118,94 @@ class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
             if self.plotdata is not None:
                 self.plotdata[signal+"_data"] = getattr(self, "plt_"+signal)
         self.plot.request_redraw()
+
+class KarcherHeartBeat(HeartBeat):
+    def __init__(self,**traits):
+        """
+        If a non-negative id is passed, signals will automatically be collected
+        from the physiodata object. Otherwise each signal must be passed
+        explicitly during construction (eg ``dzdt_signal = some_array``)
+        """
+        super(KarcherHeartBeat, self).__init__(**traits)
+        
+    def _set_default_signals(self):
+        for signal in self.physiodata.contents:
+            if signal == "respiration": continue
+            if signal in ("ecg", "ecg2"):
+                if not signal == self.physiodata.qrs_source_signal: continue
+
+            if signal == self.physiodata.qrs_source_signal:
+                mat = getattr(self.physiodata, signal+"_matrix")
+            else:
+                mat = getattr(self.physiodata, signal+"_matrix")
+
+            sig = mat.mean(0)
+
+            if signal == self.physiodata.qrs_source_signal:
+                self.ecg_signal = sig
+            else:
+                setattr(self, signal + "_signal", sig)
+            if signal == "doppler":
+                self.ddoppler_signal = np.ediff1d(smooth(self.doppler_signal,15), to_begin=0)
+                self.dddoppler_signal = np.ediff1d(smooth(self.ddoppler_signal,15), to_begin=0)
+                
+                
+            # Set the dZdt signal to the karcher mean
+            if signal == "dzdt":
+                self.dzdt_signal = self.physiodata.mode_dzdt_karcher_means[self.id]
+                self.ddzdt_signal = np.ediff1d(smooth(self.dzdt_signal,15), to_begin=0)
+                self.dddzdt_signal = np.ediff1d(smooth(self.ddzdt_signal,15), to_begin=0)
+
+    def _set_default_times(self):
+        # Do the defaults first.        
+        super(KarcherHeartBeat,self)._set_default_times()
+        # Then set the dZ/dt time to the Karcher Mean time
+        karcher_mean = self.physiodata.dzdt_karcher_mean
+        karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
+        karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
+        self.dzdt_time = karcher_time
+        
+    
+    def _default_physio_timepoints(self):
+        """
+        Override the base class function because we only want a b point on dzdt
+        """
+        points = {}
+        if "ecg" in self.physiodata.contents:
+            points.update({
+             "p": TimePoint(name="p", applies_to="ecg",point_type="max",beat=self),
+             "q": TimePoint(name="q", applies_to="ecg",point_type="min",beat=self),
+             "r": TimePoint(name="r", applies_to="ecg",point_type="max",beat=self),
+             "s": TimePoint(name="s", applies_to="ecg",point_type="min",beat=self),
+             "t": TimePoint(name="t", applies_to="ecg",point_type="max",beat=self)})
+        if "dzdt" in self.physiodata.contents:
+            points.update({
+             "b": KarcherTimePoint(name="b", applies_to="dzdt",point_type="geom_trick",beat=self),
+             })
+        if "bp" in self.physiodata.contents:
+            points["systole"]  = TimePoint(
+                  name="systole", applies_to="bp",point_type="max",beat=self)
+            points["diastole"] = TimePoint(
+                  name="diastole", applies_to="bp",point_type="min",beat=self)
+        if "systolic" in self.physiodata.contents and "diastolic" in self.physiodata.contents:
+            points["systole"] = TimePoint(name="systole",
+                  applies_to="systolic", point_type="average",beat=self)
+            points["diastole"] = TimePoint(name="diastole",
+                  applies_to="diastolic", point_type="average",beat=self)
+        if "doppler" in self.physiodata.contents:
+            points.update({
+             "db": TimePoint(name="db", applies_to="doppler", point_type=self.physiodata.db_point_type, beat=self),
+             "dx": TimePoint(name="dx", applies_to="doppler", point_type=self.physiodata.dx_point_type, beat=self)})
+        return points
+    
+    def _registration_plot_default(self):
+        plotdata = ArrayPlotData(
+            dzdt = self.dzdt_signal,
+            dzdt_time = self.dzdt_time
+        )
+        
+        # Create the plots and tools/overlays
+        main_plot = Plot(plotdata,title="Registration",padding=20)
+        
+        # Create containers
+        return main_plot
