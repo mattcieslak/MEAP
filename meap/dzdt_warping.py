@@ -299,7 +299,7 @@ class GroupRegisterDZDT(HasTraits):
         self.dzdt_karcher_mean_inputs = np.random.choice(nbeats,size=nsamps,replace=False)
 
     @on_trait_change(
-       ("physiodata.srvf_lambda, physiodata.srvf_karcher_iterations, "
+       ("physiodata.srvf_lambda, "
         "physiodata.srvf_update_min, physiodata.srvf_use_moving_ensembled, "
         "physiodata.srvf_karcher_mean_subset_size, "
         "physiodata.bspline_before_warping"
