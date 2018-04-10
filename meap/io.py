@@ -895,6 +895,9 @@ def load_from_disk(matfile, config=None,verbose=False):
             if k == "censoring_sources":
                 tdict[k] = [str(d).strip() for d in v]
                 continue
+            if k == "karcher_b_indices":
+                tdict[k] = v.squeeze()
+                continue
 
             # cast the squeezed matrices into their appropriate types
             if k.startswith("EVENT_"):

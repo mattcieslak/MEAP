@@ -12,6 +12,7 @@ import numpy as np
 eps = np.finfo(np.float64).eps
 
 from meap.beat import GlobalEnsembleAveragedHeartBeat
+from meap.beat_train import ModeKarcherBeatTrain
 import time
 from meap.gui_tools import MEAPView, messagebox
 from meap.io import PhysioData
@@ -82,22 +83,18 @@ class GroupRegisterDZDT(HasTraits):
     karcher_plot = Instance(Plot, transient=True)
     registration_plot = Instance(HPlotContainer, transient=True)
     karcher_plotdata = Instance(ArrayPlotData, transient=True)
-    currently_editing = Enum("none", "b", "x")
 
     # Buttons
     b_calculate_karcher_mean = Button(label="Calculate Karcher Mean")
     b_align_all_beats = Button(label="Warp all")
-    b_update_b_point = Button(label="Update B-Point")
-    b_update_x_point = Button(label="Update X-Point")
-
+    b_find_modes = Button(label="Discover Modes")
+    b_edit_modes = Button(label="Score Modes")
     interactive = Bool(False)
 
-    # Hold the physio plots
-    # For selecting points on the Karcher Mean
-    ptool_t = Float(0.)
-    ptool_t_selection = Float(0.)
-    point_plots = Instance(VPlotContainer,transient=True)
-    ptool_index_in_warps = Int()
+    # Holds the karcher modes
+    mode_beat_train = Instance(ModeKarcherBeatTrain)
+    edit_listening = Bool(False,desc="If true, update_plots is called"
+            " when a beat gets hand labeled")
 
     def __init__(self,**traits):
         super(GroupRegisterDZDT,self).__init__(**traits)
@@ -120,6 +117,12 @@ class GroupRegisterDZDT(HasTraits):
 
         self.select_new_samples()
 
+    def _mode_beat_train_default(self):
+        logger.info("creating default mea_beat_train")
+        assert self.physiodata is not None
+        mkbt = ModeKarcherBeatTrain(physiodata=self.physiodata)
+        return mkbt
+        
     def _init_warps(self):
         """ For loading warps from mea.mat """
         if self.dzdt_warping_functions.shape[0] == \
@@ -130,41 +133,8 @@ class GroupRegisterDZDT(HasTraits):
     def _global_ensemble_default(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
-    def _ptool_t_changed(self):
-        """ Responds when the cursor moves in the mean plot"""
-        if self.currently_editing == "none":
-            return
-
-        """
-        self.point_plotdata = ArrayPlotData(
-            peak_times=self.physiodata.peak_times.flatten(),
-            x_times = self.physiodata.x_indices - self.physiodata.dzdt_pre_peak,
-            lvet = self.physiodata.lvet,
-            pep = self.physiodata.pep
-        )
-        """
-        # ptool_t is in dzdt_time
-        icg_t_offset = self.physiodata.dzdt_pre_peak
-        self.ptool_index_in_warps = int(
-                    np.floor(self.ptool_t - self.srvf_t_min + icg_t_offset))
-        logger.info("Closest index %d, ptool_t %.2f",
-                    self.ptool_index_in_warps, self.ptool_t)
-        if self.currently_editing == "b":
-            b_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
-            lvet = self.physiodata.x_indices - b_indices
-            pep = b_indices - icg_t_offset
-            self.point_plotdata.set_data("pep", pep)
-
-        elif self.currently_editing == "x":
-            x_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
-            lvet = x_indices - self.physiodata.b_indices
-            self.point_plotdata.set_data("x_times",x_indices - icg_t_offset)
-
-        self.point_plotdata.set_data("lvet", lvet)
 
     def _ptool_t_selection_changed(self):
-        if self.currently_editing == "none": return
-        self.karcher_plot.title = ""
         if self.currently_editing == "b":
             orig_time = self.physiodata.ens_avg_b_time
             self.physiodata.ens_avg_b_time = self.ptool_t
@@ -172,13 +142,6 @@ class GroupRegisterDZDT(HasTraits):
                                             self.ptool_index_in_warps].copy()
             logger.info("Changed B from %d to %d", orig_time,
                         self.physiodata.ens_avg_b_time)
-        elif self.currently_editing == "x":
-            orig_time = self.physiodata.ens_avg_x_time
-            self.physiodata.ens_avg_x_time = self.ptool_t
-            self.physiodata.x_indices = self.dzdt_warping_functions[:,
-                                            self.ptool_index_in_warps].copy()
-            logger.info("Changed X from %d to %d", orig_time,
-                        self.physiodata.ens_avg_x_time)
         self.physiodata.lvet = self.point_plotdata.get_data("lvet")
         self.physiodata.pep = self.point_plotdata.get_data("pep")
         self.currently_editing = "none"
@@ -189,15 +152,7 @@ class GroupRegisterDZDT(HasTraits):
             return
         self.currently_editing = "b"
         logger.info("Editing B point")
-        self.karcher_plot.title = "Select B Point"
 
-    def _b_update_x_point_fired(self):
-        if not self.all_beats_registered_to_mode:
-            messagebox("Click Warp all first.")
-            return
-        self.currently_editing = "x"
-        logger.info("Editing X point")
-        self.karcher_plot.title = "Select X Point"
 
     def _karcher_plot_default(self):
         """
@@ -534,7 +489,10 @@ class GroupRegisterDZDT(HasTraits):
 
         self.all_beats_registered_to_initial = True
     
-
+    
+    def _b_edit_modes_fired(self):
+        self.mode_beat_train.edit_traits()
+        
     def _point_plots_default(self):
         """
         Instead of defining these in __init__, only
@@ -562,12 +520,6 @@ class GroupRegisterDZDT(HasTraits):
         return container
 
     mean_widgets =VGroup(
-        HGroup(
-                Item("b_update_b_point", show_label=False,
-                    enabled_when="karcher_mean_calculated"),
-                Item("b_update_x_point", show_label=False,
-                    enabled_when="karcher_mean_calculated")
-        ),
         VGroup(
             Item("karcher_plot",editor=ComponentEditor(),
                  show_label=False),
@@ -586,12 +538,22 @@ class GroupRegisterDZDT(HasTraits):
             Item("b_align_all_beats", label="Step 2:",
                 enabled_when="karcher_mean_calculated")
         ),
+        label = "Initial Karcher Mean"
+    )
+    
+    mode_widgets = VGroup(
+        Item("n_modes", label="Number of Modes/Clusters"),
+        Item("max_kmeans_iterations"),
+        Item("b_find_modes", show_label=False,
+             enabled_when = "all_beats_registered_to_initial"),
+        Item("b_edit_modes", show_label=False,
+             enabled_when = "all_beats_registered_to_mode")
     )
 
     traits_view = MEAPView(
         HSplit(
-            Item("point_plots", editor=ComponentEditor(),show_label=False),
-            mean_widgets
+            mean_widgets,
+            mode_widgets
         ),
         resizable=True,
         win_title="ICG Warping Tools",
