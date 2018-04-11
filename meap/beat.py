@@ -1160,10 +1160,7 @@ class KarcherHeartBeat(HeartBeat):
         # Do the defaults first.        
         super(KarcherHeartBeat,self)._set_default_times()
         # Then set the dZ/dt time to the Karcher Mean time
-        karcher_mean = self.physiodata.dzdt_karcher_mean
-        karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
-        karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
-        self.dzdt_time = karcher_time
+        self.dzdt_time = self.physiodata.dzdt_karcher_mean_time
         
     
     def _default_physio_timepoints(self):
@@ -1180,7 +1177,7 @@ class KarcherHeartBeat(HeartBeat):
              "t": TimePoint(name="t", applies_to="ecg",point_type="max",beat=self)})
         if "dzdt" in self.physiodata.contents:
             points.update({
-             "b": KarcherTimePoint(name="b", applies_to="dzdt",point_type="geom_trick",beat=self),
+             "b": KarcherTimePoint(name="b", applies_to="dzdt",point_type="min",beat=self),
              })
         if "bp" in self.physiodata.contents:
             points["systole"]  = TimePoint(

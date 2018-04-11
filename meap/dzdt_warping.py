@@ -60,9 +60,13 @@ class GroupRegisterDZDT(HasTraits):
     srvf_use_moving_ensembled = DelegatesTo("physiodata")
     bspline_before_warping = DelegatesTo("physiodata")
     dzdt_functions_to_warp = DelegatesTo("physiodata")
+    
+    # Configures the slice of time to be registered
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
-
+    dzdt_karcher_mean_time = DelegatesTo("physiodata")
+    dzdt_mask = Array
+    
     # Holds indices of beats used to calculate initial Karcher mean
     dzdt_karcher_mean_inputs = DelegatesTo("physiodata")
     dzdt_karcher_mean_over_iterations = DelegatesTo("physiodata")
@@ -105,18 +109,16 @@ class GroupRegisterDZDT(HasTraits):
         # Is there already a Karcher mean in the physiodata?
         self.karcher_mean_calculated = self.dzdt_srvf_karcher_mean.size > 0 \
                                 and self.dzdt_karcher_mean.size > 0
-
+        
         # Process dZdt data before srvf analysis
         self._update_original_functions()
 
         self.n_functions = self.dzdt_functions_to_warp.shape[0]
         self.n_samples = self.dzdt_functions_to_warp.shape[1]
-        self.karcher_mean_time = self.sample_times + self.srvf_t_min \
-                                    - self.physiodata.dzdt_pre_peak
         self._init_warps()
 
         self.select_new_samples()
-
+        
     def _mode_beat_train_default(self):
         logger.info("creating default mea_beat_train")
         assert self.physiodata is not None
@@ -163,15 +165,15 @@ class GroupRegisterDZDT(HasTraits):
         unreg_mean = self.global_ensemble.dzdt_signal
         # Temporarily fill in the karcher mean
         if not self.karcher_mean_calculated:
-            karcher_mean = unreg_mean[self.srvf_t_min:self.srvf_t_max]
+            karcher_mean = unreg_mean[self.dzdt_mask]
         else:
             karcher_mean = self.dzdt_karcher_mean
 
         self.karcher_plotdata = ArrayPlotData(
             time = self.global_ensemble.dzdt_time,
-            karcher_time = self.karcher_mean_time,
             unregistered_mean = self.global_ensemble.dzdt_signal,
-            karcher_mean = karcher_mean
+            karcher_mean = karcher_mean,
+            karcher_time = self.dzdt_karcher_mean_time
         )
         karcher_plot = Plot(self.karcher_plotdata)
         karcher_plot.plot(("time","unregistered_mean"),
@@ -180,14 +182,6 @@ class GroupRegisterDZDT(HasTraits):
                     line_width=3,color="blue")[0]
         # Create an overlay tool
         karcher_plot.datasources['karcher_time'].sort_order = "ascending"
-        p_tool = BTool(line_plot=line_plot, component=karcher_plot)
-        karcher_plot.overlays.append(p_tool)
-        p_tool.sync_trait("time",self,"ptool_t")
-        p_tool.sync_trait("selected_time",self,"ptool_t_selection")
-        # Create a marker
-        p_marker = BMarker(line_plot=line_plot, component=karcher_plot,
-                       color="black",selected_time=self.global_ensemble.b.time)
-        karcher_plot.overlays.append(p_marker)
 
         return karcher_plot
 
@@ -199,12 +193,12 @@ class GroupRegisterDZDT(HasTraits):
         unreg_mean = self.global_ensemble.dzdt_signal
         # Temporarily fill in the karcher mean
         if not self.karcher_mean_calculated:
-            karcher_mean = unreg_mean[self.srvf_t_min:self.srvf_t_max]
+            karcher_mean = unreg_mean[self.dzdt_mask]
         else:
             karcher_mean = self.dzdt_karcher_mean
 
         self.single_registration_plotdata = ArrayPlotData(
-            karcher_time = self.karcher_mean_time,
+            karcher_time = self.dzdt_karcher_mean_time,
             karcher_mean = karcher_mean,
             registered_func = karcher_mean
         )
@@ -240,7 +234,7 @@ class GroupRegisterDZDT(HasTraits):
         gam = gam / (self.srvf_t_max - self.srvf_t_min)
 
         aligned_functions = np.zeros_like(self.dzdt_functions_to_warp)
-        t = self.sample_times
+        t = self.dzdt_karcher_mean_time
         for k in range(self.n_functions):
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
                                              t, self.dzdt_functions_to_warp[k])
@@ -267,19 +261,25 @@ class GroupRegisterDZDT(HasTraits):
         self._update_original_functions()
 
     def _update_original_functions(self):
-        logger.info("updating functions to register")
-        # offset from t=0 at R peak
+        logger.info("updating time slice and functions to register")
+        
+        # Get the time relative to R
+        dzdt_time = np.arange(self.physiodata.dzdt_matrix.shape[1],dtype=np.float) \
+                    - self.physiodata.dzdt_pre_peak
+        self.dzdt_mask = (dzdt_time >= self.srvf_t_min) * (dzdt_time <= self.srvf_t_max)
+        srvf_time = dzdt_time[self.dzdt_mask]
+        self.dzdt_karcher_mean_time = srvf_time
+        
+        # Extract corresponding data
         self.dzdt_functions_to_warp = self.physiodata.mea_dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max] if \
+                                    : , self.dzdt_mask] if \
                 self.srvf_use_moving_ensembled else self.physiodata.dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max]
-        self.sample_times = np.arange(self.srvf_t_max - self.srvf_t_min,
-                                        dtype=np.float)
+                                    : , self.dzdt_mask]
 
         if self.bspline_before_warping:
             logger.info("Smoothing inputs with B-Splines")
             self.dzdt_functions_to_warp = np.row_stack([ UnivariateSpline(
-                self.sample_times, func, s=0.05)(self.sample_times) \
+                self.dzdt_karcher_mean_time, func, s=0.05)(self.dzdt_karcher_mean_time) \
                 for func in self.dzdt_functions_to_warp]
             )
         if self.interactive:
@@ -296,7 +296,7 @@ class GroupRegisterDZDT(HasTraits):
         """
         reg_prob = RegistrationProblem(
             self.dzdt_functions_to_warp[self.dzdt_karcher_mean_inputs].T,
-            sample_times=self.sample_times,
+            sample_times=self.dzdt_karcher_mean_time,
             max_karcher_iterations = self.srvf_max_karcher_iterations,
             lambda_value = self.srvf_lambda,
             update_min = self.srvf_update_min
@@ -364,7 +364,7 @@ class GroupRegisterDZDT(HasTraits):
                 # Run group registration to get Karcher mean
                 cluster_reg = RegistrationProblem(
                         cluster_srds,
-                        sample_times=np.arange(SRDs.shape[0], dtype=np.float),
+                        sample_times = np.arange(SRDs.shape[0], dtype=np.float),
                         max_karcher_iterations = self.srvf_max_karcher_iterations,
                         lambda_value = self.srvf_lambda,
                         update_min = self.srvf_update_min 
@@ -423,7 +423,7 @@ class GroupRegisterDZDT(HasTraits):
             # Run group registration to get Karcher mean
             cluster_reg = RegistrationProblem(
                     cluster_funcs,
-                    sample_times=np.arange(self.dzdt_functions_to_warp.shape[1], dtype=np.float),
+                    sample_times = np.arange(self.dzdt_functions_to_warp.shape[1], dtype=np.float),
                     max_karcher_iterations = self.srvf_max_karcher_iterations,
                     lambda_value = self.srvf_lambda,
                     update_min = self.srvf_update_min
@@ -457,11 +457,11 @@ class GroupRegisterDZDT(HasTraits):
         logger.info("aligned_functions %d", id(aligned_functions))
         logger.info("self.dzdt_functions_to_warp %d", id(self.dzdt_functions_to_warp))
 
-        t = self.sample_times
+        t = self.dzdt_karcher_mean_time
         for k in range(self.n_functions):
             q_c = srvf_functions[k] / np.linalg.norm(srvf_functions[k])
             G,T = dp(normed_template_func, t, q_c, t, t, t, self.srvf_lambda)
-            gam0 = np.interp(self.sample_times, T, G)
+            gam0 = np.interp(self.dzdt_karcher_mean_time, T, G)
             gam[k] = (gam0-gam0[0])/(gam0[-1]-gam0[0])  # change scale
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
                                              t, self.dzdt_functions_to_warp[k])
@@ -528,10 +528,12 @@ class GroupRegisterDZDT(HasTraits):
             Item("srvf_use_moving_ensembled",
                     label="Use Moving Ensembled dZ/dt"),
             Item("bspline_before_warping",label="B Spline smoothing"),
+            Item("srvf_t_min",label="Epoch Start Time"),
+            Item("srvf_t_max",label="Epoch End Time"),
             Item("srvf_lambda",label="Lambda Value"),
             Item("dzdt_num_inputs_to_group_warping",
                     label="Template uses N beats"),
-            Item("srvf_max_karcher_iterations", label="Max Iterations"),
+            Item("srvf_max_karcher_iterations", label="Max Karcher Iterations"),
         HGroup(
             Item("b_calculate_karcher_mean", label="Step 1:",
                 enabled_when="dirty"),
