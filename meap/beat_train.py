@@ -12,7 +12,7 @@ import numpy as np
 from meap.gui_tools import ( Item, TableEditor,
         ObjectColumn,HGroup,VGroup, SetEditor, Plot, 
         ScatterInspectorOverlay, ScatterInspector, MEAPView,
-        ArrayPlotData)
+        ArrayPlotData,gist_rainbow)
 
 from meap.gui_tools import ComponentEditor, ProgressDialog
 from sklearn.decomposition import FastICA
@@ -479,6 +479,7 @@ class ModeKarcherBeatTrain(BeatTrain):
     auto_calc_outliers = Bool(False)
     n_modes = Property(Int)
     plot_contents = "PEP"
+    b_plot_data = Instance(ArrayPlotData, transient=True)
     
     
     def _get_n_modes(self):
@@ -488,11 +489,75 @@ class ModeKarcherBeatTrain(BeatTrain):
         return min(self.physiodata.mode_dzdt_karcher_means.shape[0],
                    self.physiodata.n_modes)
     
+    @on_trait_change("beats.btool_t_selection")
+    def point_hand_labeled(self):
+        updated_cluster = self.physiodata.mode_cluster_assignment[self.selected_beat.id]
+        logger.info("Point updated for mode %d", updated_cluster)
+        
+        """
+        orig_time = self.physiodata.ens_avg_b_time
+        self.physiodata.ens_avg_b_time = self.ptool_t
+        self.physiodata.b_indices = self.dzdt_warping_functions[:,
+                                        self.ptool_index_in_warps].copy()
+        logger.info("Changed B from %d to %d", orig_time,
+                    self.physiodata.ens_avg_b_time)
+        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
+        self.physiodata.pep = self.point_plotdata.get_data("pep")
+        """
+        
+    def set_table_index(self):
+        selected_id = self.selected_beat.id
+        logger.info("Selection changed to event %d", selected_id)
+        self.param_index_data.metadata['selections'] = []
+        actual_index = [b.id for b in self.beats].index(self.selected_beat.id)
+        self.parameter_inspector._select(actual_index)
+        
+    def _outlier_plot_default(self):
+        """
+        Instead of the outlier plot, plot PEP values that
+        arise from marking points on the mode karcher means.
+        """
+        self.b_plot_data = ArrayPlotData(
+            time = self.physiodata.peak_times,
+            pep = self.physiodata.pep,
+            cluster_assignment = self.physiodata.mode_cluster_assignment
+            
+        )
+        
+        plot = Plot(self.b_plot_data)
+        self.outlier_markers = plot.plot(
+                ("time","pep","cluster_assignment"), type="cmap_scatter",
+                name="outlier_plot",
+                marker="circle",
+                color_mapper=gist_rainbow)
+        plot.padding=10
+        self.outlier_index_data = self.outlier_markers.index
+        
+        
+        """
+        # Taken from online examples
+        my_plot = plot.plots["outlier_plot"][0]
+        self.outlier_inspector = ScatterInspector(my_plot, selection_mode="toggle",
+                                          persistent_hover=False)
+        self.outlier_index_data = my_plot.index
+        self.outlier_index_data.on_trait_change(self.outlier_plot_item_selected,"metadata_changed")
+        my_plot.tools.append(self.outlier_inspector)
+        my_plot.overlays.append(
+            ScatterInspectorOverlay(my_plot,
+                                    hover_color = "transparent",
+                                    hover_marker_size = 10,
+                                    hover_outline_color = "purple",
+                                    hover_line_width = 2,
+                                    selection_marker_size = 8,
+                                    selection_color = "lightblue")
+        )
+        """
+        return plot
+    
+    
     # Disable outlier plot for this data
     def calculate_outliers(self):
         pass
-    def outlier_plot_default(self):    
-        return Plot({})
     
     def update_param_plot(self):
         pass

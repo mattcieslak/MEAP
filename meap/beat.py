@@ -1120,6 +1120,8 @@ class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
         self.plot.request_redraw()
 
 class KarcherHeartBeat(HeartBeat):
+    
+    available_widgets = List(["ICG B Point"])
     def __init__(self,**traits):
         """
         If a non-negative id is passed, signals will automatically be collected
@@ -1195,14 +1197,3 @@ class KarcherHeartBeat(HeartBeat):
              "dx": TimePoint(name="dx", applies_to="doppler", point_type=self.physiodata.dx_point_type, beat=self)})
         return points
     
-    def _registration_plot_default(self):
-        plotdata = ArrayPlotData(
-            dzdt = self.dzdt_signal,
-            dzdt_time = self.dzdt_time
-        )
-        
-        # Create the plots and tools/overlays
-        main_plot = Plot(plotdata,title="Registration",padding=20)
-        
-        # Create containers
-        return main_plot

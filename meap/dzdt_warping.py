@@ -136,24 +136,6 @@ class GroupRegisterDZDT(HasTraits):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
 
-    def _ptool_t_selection_changed(self):
-        if self.currently_editing == "b":
-            orig_time = self.physiodata.ens_avg_b_time
-            self.physiodata.ens_avg_b_time = self.ptool_t
-            self.physiodata.b_indices = self.dzdt_warping_functions[:,
-                                            self.ptool_index_in_warps].copy()
-            logger.info("Changed B from %d to %d", orig_time,
-                        self.physiodata.ens_avg_b_time)
-        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
-        self.physiodata.pep = self.point_plotdata.get_data("pep")
-        self.currently_editing = "none"
-
-    def _b_update_b_point_fired(self):
-        if not self.all_beats_registered_to_mode:
-            messagebox("Click Warp all first.")
-            return
-        self.currently_editing = "b"
-        logger.info("Editing B point")
 
 
     def _karcher_plot_default(self):
