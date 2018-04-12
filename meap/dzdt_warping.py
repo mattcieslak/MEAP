@@ -44,6 +44,25 @@ def rescale_cluster_mean(cluster_mean):
     scaled_densities = densities / densities.sum()
     return np.sqrt(scaled_densities)
 
+def get_closest_mean(srds, modes_dict):
+    """
+    returns an array of which mode is closest to each srd and an
+    array of FR distances 
+    """
+    srd_cluster_assignments = []
+    srd_cluster_distances = []
+    
+    cluster_ids = modes_dict.keys()
+    for srd in srds.T:
+        distances = [fisher_rao_dist(modes_dict[key],srd) for key in cluster_ids]
+        cluster_num = cluster_ids[np.argmin(distances)]
+        srd_cluster_assignments.append(cluster_num)
+        corresponding_mean = modes_dict[cluster_num]
+        srd_cluster_distances.append(fisher_rao_dist(corresponding_mean, srd))
+    
+    return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2
+
+
 # Add outlier detection
 # Calculate a couple karcher means and look at how different they are from each other
 class GroupRegisterDZDT(HasTraits):
@@ -328,7 +347,7 @@ class GroupRegisterDZDT(HasTraits):
         
         # Performs an iteration of k-means
         def cluster_karcher_means(initial_assignments):
-            cluster_means = []
+            cluster_means = {}
             cluster_ids = np.unique(initial_assignments).tolist()
             warping_functions = np.zeros_like(SRDs)
         
@@ -352,23 +371,18 @@ class GroupRegisterDZDT(HasTraits):
                         update_min = self.srvf_update_min 
                 )
                 cluster_reg.run_registration_parallel()
-                cluster_means.append(cluster_reg.function_karcher_mean)
+                cluster_means[cluster_id] = cluster_reg.function_karcher_mean
                 warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps
-        
-            scaled_cluster_means = [rescale_cluster_mean(cm) for cm in cluster_means]
+            
+            # Scale the cluster Karcher means so the FR distance works
+            scaled_cluster_means = {}
+            for k,v in cluster_means.iteritems():
+                scaled_cluster_means[k] = rescale_cluster_mean(v)
         
             # There are now k cluster means, which is closest for each SRD?
             # Also save its distance to its cluster's Karcher mean
-            srd_cluster_assignments = []
-            srd_cluster_distances = []
-            for srd in SRDs.T:
-                distances = [fisher_rao_dist(cluster_mean,srd) for cluster_mean in scaled_cluster_means]
-                cluster_num = cluster_ids[np.argmin(distances)]
-                srd_cluster_assignments.append(cluster_num)
-                corresponding_mean = cluster_means[cluster_ids.index(cluster_num)]
-                srd_cluster_distances.append(fisher_rao_dist(corresponding_mean, srd))
-        
-            return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2, scaled_cluster_means, warping_functions
+            srd_cluster_assignments, srd_cluster_distances = get_closest_mean(SRDs, scaled_cluster_means)
+            return srd_cluster_assignments, srd_cluster_distances, scaled_cluster_means, warping_functions
         
         # Iterate until assignments stabilize
         last_assignments = fcluster(linkage, self.n_modes, criterion="maxclust")
@@ -388,7 +402,7 @@ class GroupRegisterDZDT(HasTraits):
             
         # Finalize the clusters by aligning all the functions to the cluster mean
         # Iterate until assignments stabilize
-        cluster_means = []
+        cluster_means = {}
         cluster_ids = np.unique(assignments)
         warping_functions = np.zeros_like(dzdt_functions_to_warp)
         self.registered_functions = np.zeros_like(self.dzdt_functions_to_warp)
@@ -411,11 +425,20 @@ class GroupRegisterDZDT(HasTraits):
                     update_min = self.srvf_update_min
             )
             cluster_reg.run_registration_parallel()
-            cluster_means.append(cluster_reg.function_karcher_mean)
+            cluster_means[cluster_id] = cluster_reg.function_karcher_mean
             warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
             self.registered_functions[cluster_id_mask] = cluster_reg.registered_functions.T        
-        self.mode_dzdt_karcher_means = np.row_stack(cluster_means)
-        self.mode_cluster_assignment = assignments
+        
+        # re-order the means
+        cluster_ids = sorted(cluster_means.keys())
+        final_assignments = np.zeros_like(assignments)
+        final_modes = []
+        for final_id, orig_id in enumerate(cluster_ids):
+            final_assignments[assignments==orig_id] = final_id
+            final_modes.append(cluster_means[orig_id])
+        
+        self.mode_dzdt_karcher_means = np.row_stack(final_modes)
+        self.mode_cluster_assignment = final_assignments
         self.all_beats_registered_to_mode = True
         
     def align_all_beats_to_initial(self):
