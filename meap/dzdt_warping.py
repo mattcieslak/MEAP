@@ -321,6 +321,9 @@ class GroupRegisterDZDT(HasTraits):
     def _b_align_all_beats_fired(self):
         self.align_all_beats_to_initial()
         
+    def _b_find_modes_fired(self):
+        self.detect_modes()
+        
     def detect_modes(self):
         """
         Uses the SRD-based clustering method described in Kurtek 2017
@@ -419,15 +422,20 @@ class GroupRegisterDZDT(HasTraits):
             # Run group registration to get Karcher mean
             cluster_reg = RegistrationProblem(
                     cluster_funcs,
-                    sample_times = np.arange(self.dzdt_functions_to_warp.shape[1], dtype=np.float),
+                    sample_times = self.dzdt_karcher_mean_time,
                     max_karcher_iterations = self.srvf_max_karcher_iterations,
                     lambda_value = self.srvf_lambda,
                     update_min = self.srvf_update_min
             )
             cluster_reg.run_registration_parallel()
             cluster_means[cluster_id] = cluster_reg.function_karcher_mean
-            warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
+            warping_functions[:, cluster_id_mask] = cluster_reg.mean_to_orig_warps    
             self.registered_functions[cluster_id_mask] = cluster_reg.registered_functions.T        
+        
+        # Save the warps to the modes as the final warping functions        
+        self.dzdt_warping_functions = warping_functions.T \
+                                      * (self.srvf_t_max - self.srvf_t_min) \
+                                      + self.srvf_t_min
         
         # re-order the means
         cluster_ids = sorted(cluster_means.keys())

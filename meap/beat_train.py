@@ -480,6 +480,8 @@ class ModeKarcherBeatTrain(BeatTrain):
     n_modes = Property(Int)
     plot_contents = "PEP"
     b_plot_data = Instance(ArrayPlotData, transient=True)
+    beat_train = Instance(BeatTrain)
+    pep = Array
     
     
     def _get_n_modes(self):
@@ -489,22 +491,42 @@ class ModeKarcherBeatTrain(BeatTrain):
         return min(self.physiodata.mode_dzdt_karcher_means.shape[0],
                    self.physiodata.n_modes)
     
+    def _beat_train_default(self):
+        if self.physiodata.srvf_use_moving_ensembled:
+            return MEABeatTrain(physiodata = self.physiodata)
+        return BeatTrain(physiodata = self.physiodata)
+    
     @on_trait_change("beats.btool_t_selection")
     def point_hand_labeled(self):
-        updated_cluster = self.physiodata.mode_cluster_assignment[self.selected_beat.id]
+        """
+        A b-point has been marked, so update the b-points for 
+        each heartbeat
+        """
+        updated_cluster = self.selected_beat.id
         logger.info("Point updated for mode %d", updated_cluster)
         
-        """
-        orig_time = self.physiodata.ens_avg_b_time
-        self.physiodata.ens_avg_b_time = self.ptool_t
-        self.physiodata.b_indices = self.dzdt_warping_functions[:,
-                                        self.ptool_index_in_warps].copy()
-        logger.info("Changed B from %d to %d", orig_time,
-                    self.physiodata.ens_avg_b_time)
-        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
-        self.physiodata.pep = self.point_plotdata.get_data("pep")
-        """
+        # Update corresponding beats
+        cluster_mask = self.physiodata.mode_cluster_assignment == updated_cluster
+        cluster_beats = np.flatnonzero(cluster_mask)
+        logger.info("updating %d corresponding beats" % len(cluster_beats))
         
+        mode_b_index = self.selected_beat.b.index
+        for beatnum in cluster_beats:
+            beat = [b for b in self.beat_train.beats if b.id == beatnum]
+            if not len(beat) == 1:
+                raise ValueError("Error in beat indexing")
+            beat = beat[0]
+            warp = self.physiodata.dzdt_warping_functions[beatnum]
+            new_time = warp[self.selected_beat.b.index]
+            beat.b.set_time(new_time)
+            
+        self.pep = np.array([pt.get_pep() for pt in self.beats])
+        self.b_plot_data.set_data("pep", self.physiodata.b_indices \
+                                  - self.physiodata.dzdt_pre_peak)
+        
+            
+        
+    @on_trait_change("selected_beat")
     def set_table_index(self):
         selected_id = self.selected_beat.id
         logger.info("Selection changed to event %d", selected_id)

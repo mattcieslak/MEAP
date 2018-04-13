@@ -253,10 +253,7 @@ class KarcherTimePoint(TimePoint):
         self.offset = int(karcher_time[0])
         # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
-            try:
-                self.set_index(index_array[self.beat.id])
-            except Exception, e:
-                logger.warn("Error setting %s:\n%s",self.name, e)
+            self.set_index(index_array[self.beat.id])
                 
     def mark_similar(self,*args,**kwargs):
         pass

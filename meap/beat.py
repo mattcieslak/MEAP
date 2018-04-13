@@ -633,7 +633,7 @@ class HeartBeat(HasTraits):
         construct the plots when a ui is requested
         """
         karcher_mean = self.physiodata.mode_dzdt_karcher_means[
-                        self.physiodata.mode_cluster_assignments[self.id]-1]
+                        self.physiodata.mode_cluster_assignment[self.id]]
         karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
         karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
         
