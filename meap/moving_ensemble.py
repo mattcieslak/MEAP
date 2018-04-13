@@ -7,9 +7,8 @@ import joblib
 
 # Needed for Tabular adapter
 from meap.gui_tools import Item,HGroup,VGroup, HSplit, ProgressDialog
-from traitsui.menu import OKButton, CancelButton
 from meap.gui_tools import (ComponentEditor, Plot, ArrayPlotData, 
-        VPlotContainer, jet)
+        VPlotContainer, jet,OKButton, CancelButton)
 import numpy as np
 
 from meap.beat_train import MEABeatTrain
@@ -379,7 +378,8 @@ class MovingEnsembler(HasTraits):
     def _mea_beat_train_default(self):
         logger.info("creating default mea_beat_train")
         assert self.physiodata is not None
-        mbt = MEABeatTrain(physiodata=self.physiodata)
+        mbt = MEABeatTrain(physiodata=self.physiodata, 
+                           interactive=self.interactive)
         return mbt
 
     def _weighting_func_default(self):

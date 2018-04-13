@@ -36,7 +36,7 @@ from scipy.cluster.hierarchy import fcluster
 
 def fisher_rao_dist(psi1, psi2):
     """ Equation 4 from Kurtek 2017"""
-    return np.nan_to_num(np.arccos(np.inner(psi1,psi2)))
+    return np.nan_to_num(np.arccos(np.inner(psi1.squeeze(),psi2.squeeze())))
 
 # Rescales the cluster mean to be on the great circle
 def rescale_cluster_mean(cluster_mean):
