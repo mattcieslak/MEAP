@@ -633,7 +633,7 @@ class HeartBeat(HasTraits):
         construct the plots when a ui is requested
         """
         karcher_mean = self.physiodata.mode_dzdt_karcher_means[
-                        self.physiodata.mode_cluster_assignments[self.id]-1]
+                        self.physiodata.mode_cluster_assignment[self.id]]
         karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
         karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
         
@@ -1120,6 +1120,8 @@ class GlobalEnsembleAveragedHeartBeat(EnsembleAveragedHeartBeat):
         self.plot.request_redraw()
 
 class KarcherHeartBeat(HeartBeat):
+    
+    available_widgets = List(["ICG B Point"])
     def __init__(self,**traits):
         """
         If a non-negative id is passed, signals will automatically be collected
@@ -1160,10 +1162,7 @@ class KarcherHeartBeat(HeartBeat):
         # Do the defaults first.        
         super(KarcherHeartBeat,self)._set_default_times()
         # Then set the dZ/dt time to the Karcher Mean time
-        karcher_mean = self.physiodata.dzdt_karcher_mean
-        karcher_sample = np.arange(len(self.physiodata.dzdt_karcher_mean),dtype=np.float)
-        karcher_time = karcher_sample + self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
-        self.dzdt_time = karcher_time
+        self.dzdt_time = self.physiodata.dzdt_karcher_mean_time
         
     
     def _default_physio_timepoints(self):
@@ -1180,7 +1179,7 @@ class KarcherHeartBeat(HeartBeat):
              "t": TimePoint(name="t", applies_to="ecg",point_type="max",beat=self)})
         if "dzdt" in self.physiodata.contents:
             points.update({
-             "b": KarcherTimePoint(name="b", applies_to="dzdt",point_type="geom_trick",beat=self),
+             "b": KarcherTimePoint(name="b", applies_to="dzdt",point_type="min",beat=self),
              })
         if "bp" in self.physiodata.contents:
             points["systole"]  = TimePoint(
@@ -1198,14 +1197,3 @@ class KarcherHeartBeat(HeartBeat):
              "dx": TimePoint(name="dx", applies_to="doppler", point_type=self.physiodata.dx_point_type, beat=self)})
         return points
     
-    def _registration_plot_default(self):
-        plotdata = ArrayPlotData(
-            dzdt = self.dzdt_signal,
-            dzdt_time = self.dzdt_time
-        )
-        
-        # Create the plots and tools/overlays
-        main_plot = Plot(plotdata,title="Registration",padding=20)
-        
-        # Create containers
-        return main_plot
