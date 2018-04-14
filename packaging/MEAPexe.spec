@@ -21,7 +21,10 @@ a.datas += [
           ('resources\\meap.png',
           'C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\meap.png','DATA'),
           ('resources\\logo512x512.png',
-          'C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\logo512x512.png','DATA')
+          'C:\\Users\\mattc\\projects\\MEAP\\meap\\resources\\logo512x512.png','DATA'),
+          ('srvf_register/dynamic_programming_q2.so',
+          'C:\\Users\\mattc\\projects\\srvf_register\\srvf_register\\dynamic_programming_q2.pyd',
+          'EXTENSION')
 ]
 
 pyz = PYZ(a.pure, a.zipped_data,
