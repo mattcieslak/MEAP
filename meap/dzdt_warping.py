@@ -12,6 +12,7 @@ import numpy as np
 eps = np.finfo(np.float64).eps
 
 from meap.beat import GlobalEnsembleAveragedHeartBeat
+from meap.beat_train import ModeKarcherBeatTrain
 import time
 from meap.gui_tools import MEAPView, messagebox
 from meap.io import PhysioData
@@ -43,6 +44,25 @@ def rescale_cluster_mean(cluster_mean):
     scaled_densities = densities / densities.sum()
     return np.sqrt(scaled_densities)
 
+def get_closest_mean(srds, modes_dict):
+    """
+    returns an array of which mode is closest to each srd and an
+    array of FR distances 
+    """
+    srd_cluster_assignments = []
+    srd_cluster_distances = []
+    
+    cluster_ids = modes_dict.keys()
+    for srd in srds.T:
+        distances = [fisher_rao_dist(modes_dict[key],srd) for key in cluster_ids]
+        cluster_num = cluster_ids[np.argmin(distances)]
+        srd_cluster_assignments.append(cluster_num)
+        corresponding_mean = modes_dict[cluster_num]
+        srd_cluster_distances.append(fisher_rao_dist(corresponding_mean, srd))
+    
+    return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2
+
+
 # Add outlier detection
 # Calculate a couple karcher means and look at how different they are from each other
 class GroupRegisterDZDT(HasTraits):
@@ -59,9 +79,13 @@ class GroupRegisterDZDT(HasTraits):
     srvf_use_moving_ensembled = DelegatesTo("physiodata")
     bspline_before_warping = DelegatesTo("physiodata")
     dzdt_functions_to_warp = DelegatesTo("physiodata")
+    
+    # Configures the slice of time to be registered
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
-
+    dzdt_karcher_mean_time = DelegatesTo("physiodata")
+    dzdt_mask = Array
+    
     # Holds indices of beats used to calculate initial Karcher mean
     dzdt_karcher_mean_inputs = DelegatesTo("physiodata")
     dzdt_karcher_mean_over_iterations = DelegatesTo("physiodata")
@@ -82,22 +106,18 @@ class GroupRegisterDZDT(HasTraits):
     karcher_plot = Instance(Plot, transient=True)
     registration_plot = Instance(HPlotContainer, transient=True)
     karcher_plotdata = Instance(ArrayPlotData, transient=True)
-    currently_editing = Enum("none", "b", "x")
 
     # Buttons
     b_calculate_karcher_mean = Button(label="Calculate Karcher Mean")
     b_align_all_beats = Button(label="Warp all")
-    b_update_b_point = Button(label="Update B-Point")
-    b_update_x_point = Button(label="Update X-Point")
-
+    b_find_modes = Button(label="Discover Modes")
+    b_edit_modes = Button(label="Score Modes")
     interactive = Bool(False)
 
-    # Hold the physio plots
-    # For selecting points on the Karcher Mean
-    ptool_t = Float(0.)
-    ptool_t_selection = Float(0.)
-    point_plots = Instance(VPlotContainer,transient=True)
-    ptool_index_in_warps = Int()
+    # Holds the karcher modes
+    mode_beat_train = Instance(ModeKarcherBeatTrain)
+    edit_listening = Bool(False,desc="If true, update_plots is called"
+            " when a beat gets hand labeled")
 
     def __init__(self,**traits):
         super(GroupRegisterDZDT,self).__init__(**traits)
@@ -108,18 +128,22 @@ class GroupRegisterDZDT(HasTraits):
         # Is there already a Karcher mean in the physiodata?
         self.karcher_mean_calculated = self.dzdt_srvf_karcher_mean.size > 0 \
                                 and self.dzdt_karcher_mean.size > 0
-
+        
         # Process dZdt data before srvf analysis
         self._update_original_functions()
 
         self.n_functions = self.dzdt_functions_to_warp.shape[0]
         self.n_samples = self.dzdt_functions_to_warp.shape[1]
-        self.karcher_mean_time = self.sample_times + self.srvf_t_min \
-                                    - self.physiodata.dzdt_pre_peak
         self._init_warps()
 
         self.select_new_samples()
-
+        
+    def _mode_beat_train_default(self):
+        logger.info("creating default mea_beat_train")
+        assert self.physiodata is not None
+        mkbt = ModeKarcherBeatTrain(physiodata=self.physiodata)
+        return mkbt
+        
     def _init_warps(self):
         """ For loading warps from mea.mat """
         if self.dzdt_warping_functions.shape[0] == \
@@ -130,74 +154,8 @@ class GroupRegisterDZDT(HasTraits):
     def _global_ensemble_default(self):
         return GlobalEnsembleAveragedHeartBeat(physiodata=self.physiodata)
 
-    def _ptool_t_changed(self):
-        """ Responds when the cursor moves in the mean plot"""
-        if self.currently_editing == "none":
-            return
 
-        """
-        self.point_plotdata = ArrayPlotData(
-            peak_times=self.physiodata.peak_times.flatten(),
-            x_times = self.physiodata.x_indices - self.physiodata.dzdt_pre_peak,
-            lvet = self.physiodata.lvet,
-            pep = self.physiodata.pep
-        )
-        """
-        # ptool_t is in dzdt_time
-        icg_t_offset = self.physiodata.dzdt_pre_peak
-        self.ptool_index_in_warps = int(
-                    np.floor(self.ptool_t - self.srvf_t_min + icg_t_offset))
-        logger.info("Closest index %d, ptool_t %.2f",
-                    self.ptool_index_in_warps, self.ptool_t)
-        if self.currently_editing == "b":
-            b_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
-            lvet = self.physiodata.x_indices - b_indices
-            pep = b_indices - icg_t_offset
-            self.point_plotdata.set_data("pep", pep)
 
-        elif self.currently_editing == "x":
-            x_indices = self.dzdt_warping_functions[:, self.ptool_index_in_warps]
-            lvet = x_indices - self.physiodata.b_indices
-            self.point_plotdata.set_data("x_times",x_indices - icg_t_offset)
-
-        self.point_plotdata.set_data("lvet", lvet)
-
-    def _ptool_t_selection_changed(self):
-        if self.currently_editing == "none": return
-        self.karcher_plot.title = ""
-        if self.currently_editing == "b":
-            orig_time = self.physiodata.ens_avg_b_time
-            self.physiodata.ens_avg_b_time = self.ptool_t
-            self.physiodata.b_indices = self.dzdt_warping_functions[:,
-                                            self.ptool_index_in_warps].copy()
-            logger.info("Changed B from %d to %d", orig_time,
-                        self.physiodata.ens_avg_b_time)
-        elif self.currently_editing == "x":
-            orig_time = self.physiodata.ens_avg_x_time
-            self.physiodata.ens_avg_x_time = self.ptool_t
-            self.physiodata.x_indices = self.dzdt_warping_functions[:,
-                                            self.ptool_index_in_warps].copy()
-            logger.info("Changed X from %d to %d", orig_time,
-                        self.physiodata.ens_avg_x_time)
-        self.physiodata.lvet = self.point_plotdata.get_data("lvet")
-        self.physiodata.pep = self.point_plotdata.get_data("pep")
-        self.currently_editing = "none"
-
-    def _b_update_b_point_fired(self):
-        if not self.all_beats_registered_to_mode:
-            messagebox("Click Warp all first.")
-            return
-        self.currently_editing = "b"
-        logger.info("Editing B point")
-        self.karcher_plot.title = "Select B Point"
-
-    def _b_update_x_point_fired(self):
-        if not self.all_beats_registered_to_mode:
-            messagebox("Click Warp all first.")
-            return
-        self.currently_editing = "x"
-        logger.info("Editing X point")
-        self.karcher_plot.title = "Select X Point"
 
     def _karcher_plot_default(self):
         """
@@ -208,15 +166,15 @@ class GroupRegisterDZDT(HasTraits):
         unreg_mean = self.global_ensemble.dzdt_signal
         # Temporarily fill in the karcher mean
         if not self.karcher_mean_calculated:
-            karcher_mean = unreg_mean[self.srvf_t_min:self.srvf_t_max]
+            karcher_mean = unreg_mean[self.dzdt_mask]
         else:
             karcher_mean = self.dzdt_karcher_mean
 
         self.karcher_plotdata = ArrayPlotData(
             time = self.global_ensemble.dzdt_time,
-            karcher_time = self.karcher_mean_time,
             unregistered_mean = self.global_ensemble.dzdt_signal,
-            karcher_mean = karcher_mean
+            karcher_mean = karcher_mean,
+            karcher_time = self.dzdt_karcher_mean_time
         )
         karcher_plot = Plot(self.karcher_plotdata)
         karcher_plot.plot(("time","unregistered_mean"),
@@ -225,14 +183,6 @@ class GroupRegisterDZDT(HasTraits):
                     line_width=3,color="blue")[0]
         # Create an overlay tool
         karcher_plot.datasources['karcher_time'].sort_order = "ascending"
-        p_tool = BTool(line_plot=line_plot, component=karcher_plot)
-        karcher_plot.overlays.append(p_tool)
-        p_tool.sync_trait("time",self,"ptool_t")
-        p_tool.sync_trait("selected_time",self,"ptool_t_selection")
-        # Create a marker
-        p_marker = BMarker(line_plot=line_plot, component=karcher_plot,
-                       color="black",selected_time=self.global_ensemble.b.time)
-        karcher_plot.overlays.append(p_marker)
 
         return karcher_plot
 
@@ -244,12 +194,12 @@ class GroupRegisterDZDT(HasTraits):
         unreg_mean = self.global_ensemble.dzdt_signal
         # Temporarily fill in the karcher mean
         if not self.karcher_mean_calculated:
-            karcher_mean = unreg_mean[self.srvf_t_min:self.srvf_t_max]
+            karcher_mean = unreg_mean[self.dzdt_mask]
         else:
             karcher_mean = self.dzdt_karcher_mean
 
         self.single_registration_plotdata = ArrayPlotData(
-            karcher_time = self.karcher_mean_time,
+            karcher_time = self.dzdt_karcher_mean_time,
             karcher_mean = karcher_mean,
             registered_func = karcher_mean
         )
@@ -285,7 +235,7 @@ class GroupRegisterDZDT(HasTraits):
         gam = gam / (self.srvf_t_max - self.srvf_t_min)
 
         aligned_functions = np.zeros_like(self.dzdt_functions_to_warp)
-        t = self.sample_times
+        t = self.dzdt_karcher_mean_time
         for k in range(self.n_functions):
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
                                              t, self.dzdt_functions_to_warp[k])
@@ -312,19 +262,25 @@ class GroupRegisterDZDT(HasTraits):
         self._update_original_functions()
 
     def _update_original_functions(self):
-        logger.info("updating functions to register")
-        # offset from t=0 at R peak
+        logger.info("updating time slice and functions to register")
+        
+        # Get the time relative to R
+        dzdt_time = np.arange(self.physiodata.dzdt_matrix.shape[1],dtype=np.float) \
+                    - self.physiodata.dzdt_pre_peak
+        self.dzdt_mask = (dzdt_time >= self.srvf_t_min) * (dzdt_time <= self.srvf_t_max)
+        srvf_time = dzdt_time[self.dzdt_mask]
+        self.dzdt_karcher_mean_time = srvf_time
+        
+        # Extract corresponding data
         self.dzdt_functions_to_warp = self.physiodata.mea_dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max] if \
+                                    : , self.dzdt_mask] if \
                 self.srvf_use_moving_ensembled else self.physiodata.dzdt_matrix[
-                                    : , self.srvf_t_min:self.srvf_t_max]
-        self.sample_times = np.arange(self.srvf_t_max - self.srvf_t_min,
-                                        dtype=np.float)
+                                    : , self.dzdt_mask]
 
         if self.bspline_before_warping:
             logger.info("Smoothing inputs with B-Splines")
             self.dzdt_functions_to_warp = np.row_stack([ UnivariateSpline(
-                self.sample_times, func, s=0.05)(self.sample_times) \
+                self.dzdt_karcher_mean_time, func, s=0.05)(self.dzdt_karcher_mean_time) \
                 for func in self.dzdt_functions_to_warp]
             )
         if self.interactive:
@@ -341,7 +297,7 @@ class GroupRegisterDZDT(HasTraits):
         """
         reg_prob = RegistrationProblem(
             self.dzdt_functions_to_warp[self.dzdt_karcher_mean_inputs].T,
-            sample_times=self.sample_times,
+            sample_times=self.dzdt_karcher_mean_time,
             max_karcher_iterations = self.srvf_max_karcher_iterations,
             lambda_value = self.srvf_lambda,
             update_min = self.srvf_update_min
@@ -364,6 +320,9 @@ class GroupRegisterDZDT(HasTraits):
 
     def _b_align_all_beats_fired(self):
         self.align_all_beats_to_initial()
+        
+    def _b_find_modes_fired(self):
+        self.detect_modes()
         
     def detect_modes(self):
         """
@@ -391,7 +350,7 @@ class GroupRegisterDZDT(HasTraits):
         
         # Performs an iteration of k-means
         def cluster_karcher_means(initial_assignments):
-            cluster_means = []
+            cluster_means = {}
             cluster_ids = np.unique(initial_assignments).tolist()
             warping_functions = np.zeros_like(SRDs)
         
@@ -409,29 +368,24 @@ class GroupRegisterDZDT(HasTraits):
                 # Run group registration to get Karcher mean
                 cluster_reg = RegistrationProblem(
                         cluster_srds,
-                        sample_times=np.arange(SRDs.shape[0], dtype=np.float),
+                        sample_times = np.arange(SRDs.shape[0], dtype=np.float),
                         max_karcher_iterations = self.srvf_max_karcher_iterations,
                         lambda_value = self.srvf_lambda,
                         update_min = self.srvf_update_min 
                 )
                 cluster_reg.run_registration_parallel()
-                cluster_means.append(cluster_reg.function_karcher_mean)
+                cluster_means[cluster_id] = cluster_reg.function_karcher_mean
                 warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps
-        
-            scaled_cluster_means = [rescale_cluster_mean(cm) for cm in cluster_means]
+            
+            # Scale the cluster Karcher means so the FR distance works
+            scaled_cluster_means = {}
+            for k,v in cluster_means.iteritems():
+                scaled_cluster_means[k] = rescale_cluster_mean(v)
         
             # There are now k cluster means, which is closest for each SRD?
             # Also save its distance to its cluster's Karcher mean
-            srd_cluster_assignments = []
-            srd_cluster_distances = []
-            for srd in SRDs.T:
-                distances = [fisher_rao_dist(cluster_mean,srd) for cluster_mean in scaled_cluster_means]
-                cluster_num = cluster_ids[np.argmin(distances)]
-                srd_cluster_assignments.append(cluster_num)
-                corresponding_mean = cluster_means[cluster_ids.index(cluster_num)]
-                srd_cluster_distances.append(fisher_rao_dist(corresponding_mean, srd))
-        
-            return np.array(srd_cluster_assignments), np.array(srd_cluster_distances)**2, scaled_cluster_means, warping_functions
+            srd_cluster_assignments, srd_cluster_distances = get_closest_mean(SRDs, scaled_cluster_means)
+            return srd_cluster_assignments, srd_cluster_distances, scaled_cluster_means, warping_functions
         
         # Iterate until assignments stabilize
         last_assignments = fcluster(linkage, self.n_modes, criterion="maxclust")
@@ -451,7 +405,7 @@ class GroupRegisterDZDT(HasTraits):
             
         # Finalize the clusters by aligning all the functions to the cluster mean
         # Iterate until assignments stabilize
-        cluster_means = []
+        cluster_means = {}
         cluster_ids = np.unique(assignments)
         warping_functions = np.zeros_like(dzdt_functions_to_warp)
         self.registered_functions = np.zeros_like(self.dzdt_functions_to_warp)
@@ -468,17 +422,31 @@ class GroupRegisterDZDT(HasTraits):
             # Run group registration to get Karcher mean
             cluster_reg = RegistrationProblem(
                     cluster_funcs,
-                    sample_times=np.arange(self.dzdt_functions_to_warp.shape[1], dtype=np.float),
+                    sample_times = self.dzdt_karcher_mean_time,
                     max_karcher_iterations = self.srvf_max_karcher_iterations,
                     lambda_value = self.srvf_lambda,
                     update_min = self.srvf_update_min
             )
             cluster_reg.run_registration_parallel()
-            cluster_means.append(cluster_reg.function_karcher_mean)
-            warping_functions[:,cluster_id_mask] = cluster_reg.mean_to_orig_warps        
+            cluster_means[cluster_id] = cluster_reg.function_karcher_mean
+            warping_functions[:, cluster_id_mask] = cluster_reg.mean_to_orig_warps    
             self.registered_functions[cluster_id_mask] = cluster_reg.registered_functions.T        
-        self.mode_dzdt_karcher_means = np.row_stack(cluster_means)
-        self.mode_cluster_assignment = assignments
+        
+        # Save the warps to the modes as the final warping functions        
+        self.dzdt_warping_functions = warping_functions.T \
+                                      * (self.srvf_t_max - self.srvf_t_min) \
+                                      + self.srvf_t_min
+        
+        # re-order the means
+        cluster_ids = sorted(cluster_means.keys())
+        final_assignments = np.zeros_like(assignments)
+        final_modes = []
+        for final_id, orig_id in enumerate(cluster_ids):
+            final_assignments[assignments==orig_id] = final_id
+            final_modes.append(cluster_means[orig_id])
+        
+        self.mode_dzdt_karcher_means = np.row_stack(final_modes)
+        self.mode_cluster_assignment = final_assignments
         self.all_beats_registered_to_mode = True
         
     def align_all_beats_to_initial(self):
@@ -502,11 +470,11 @@ class GroupRegisterDZDT(HasTraits):
         logger.info("aligned_functions %d", id(aligned_functions))
         logger.info("self.dzdt_functions_to_warp %d", id(self.dzdt_functions_to_warp))
 
-        t = self.sample_times
+        t = self.dzdt_karcher_mean_time
         for k in range(self.n_functions):
             q_c = srvf_functions[k] / np.linalg.norm(srvf_functions[k])
             G,T = dp(normed_template_func, t, q_c, t, t, t, self.srvf_lambda)
-            gam0 = np.interp(self.sample_times, T, G)
+            gam0 = np.interp(self.dzdt_karcher_mean_time, T, G)
             gam[k] = (gam0-gam0[0])/(gam0[-1]-gam0[0])  # change scale
             aligned_functions[k] = np.interp((t[-1] - t[0])*gam[k] + t[0],
                                              t, self.dzdt_functions_to_warp[k])
@@ -534,7 +502,10 @@ class GroupRegisterDZDT(HasTraits):
 
         self.all_beats_registered_to_initial = True
     
-
+    
+    def _b_edit_modes_fired(self):
+        self.mode_beat_train.edit_traits()
+        
     def _point_plots_default(self):
         """
         Instead of defining these in __init__, only
@@ -562,12 +533,6 @@ class GroupRegisterDZDT(HasTraits):
         return container
 
     mean_widgets =VGroup(
-        HGroup(
-                Item("b_update_b_point", show_label=False,
-                    enabled_when="karcher_mean_calculated"),
-                Item("b_update_x_point", show_label=False,
-                    enabled_when="karcher_mean_calculated")
-        ),
         VGroup(
             Item("karcher_plot",editor=ComponentEditor(),
                  show_label=False),
@@ -576,22 +541,34 @@ class GroupRegisterDZDT(HasTraits):
             Item("srvf_use_moving_ensembled",
                     label="Use Moving Ensembled dZ/dt"),
             Item("bspline_before_warping",label="B Spline smoothing"),
+            Item("srvf_t_min",label="Epoch Start Time"),
+            Item("srvf_t_max",label="Epoch End Time"),
             Item("srvf_lambda",label="Lambda Value"),
             Item("dzdt_num_inputs_to_group_warping",
                     label="Template uses N beats"),
-            Item("srvf_max_karcher_iterations", label="Max Iterations"),
+            Item("srvf_max_karcher_iterations", label="Max Karcher Iterations"),
         HGroup(
             Item("b_calculate_karcher_mean", label="Step 1:",
                 enabled_when="dirty"),
             Item("b_align_all_beats", label="Step 2:",
                 enabled_when="karcher_mean_calculated")
         ),
+        label = "Initial Karcher Mean"
+    )
+    
+    mode_widgets = VGroup(
+        Item("n_modes", label="Number of Modes/Clusters"),
+        Item("max_kmeans_iterations"),
+        Item("b_find_modes", show_label=False,
+             enabled_when = "all_beats_registered_to_initial"),
+        Item("b_edit_modes", show_label=False,
+             enabled_when = "all_beats_registered_to_mode")
     )
 
     traits_view = MEAPView(
         HSplit(
-            Item("point_plots", editor=ComponentEditor(),show_label=False),
-            mean_widgets
+            mean_widgets,
+            mode_widgets
         ),
         resizable=True,
         win_title="ICG Warping Tools",

@@ -151,8 +151,8 @@ class MEAPConfig(HasTraits):
     srvf_multi_mode_variance_cutoff = CFloat(0.3)
     srvf_use_moving_ensembled = CBool(False)
     dzdt_num_inputs_to_group_warping = CInt(25)
-    srvf_t_min = CInt(200)
-    srvf_t_max = CInt(550)
+    srvf_t_min = CInt(0) # Time in msec relative to R
+    srvf_t_max = CInt(150) # Also time in msec relative to R
     bspline_before_warping = CBool(True)
     n_modes = CInt(5)
     max_kmeans_iterations = CInt(5)
@@ -801,6 +801,7 @@ class PhysioData(HasTraits):
     bspline_before_warping = PrototypedFrom("config")
     dzdt_srvf_karcher_mean = Array
     dzdt_karcher_mean = Array
+    dzdt_karcher_mean_time = Array
     dzdt_warping_functions = Array
     dzdt_functions_to_warp = Array
     
@@ -894,6 +895,9 @@ def load_from_disk(matfile, config=None,verbose=False):
                 continue
             if k == "censoring_sources":
                 tdict[k] = [str(d).strip() for d in v]
+                continue
+            if k == "karcher_b_indices":
+                tdict[k] = v.squeeze()
                 continue
 
             # cast the squeezed matrices into their appropriate types

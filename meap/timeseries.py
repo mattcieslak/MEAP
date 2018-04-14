@@ -143,7 +143,7 @@ class TimePoint(HasTraits):
         if self.applies_to in ("systolic", "diastolic", "bp"):
             self.offset = self.physiodata.bp_pre_peak
         elif self.applies_to == "dzdt_karcher":
-            self.offset = self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
+            self.offset = int(self.physiodata.dzdt_karcher_mean_time[0])
         else:
             self.offset = getattr(self.physiodata,self.applies_to + "_pre_peak")
 
@@ -249,13 +249,11 @@ class KarcherTimePoint(TimePoint):
         super(KarcherTimePoint,self).__init__(**traits)
         self.physiodata = self.beat.physiodata
         index_array = self.physiodata.karcher_b_indices
-        self.offset = self.physiodata.srvf_t_min - self.physiodata.dzdt_pre_peak
+        karcher_time = self.physiodata.dzdt_karcher_mean_time
+        self.offset = int(karcher_time[0])
         # Initialize to whatever's in the physiodata array
         if self.beat.id is not None and self.beat.id > -1:
-            try:
-                self.set_index(index_array[self.beat.id])
-            except Exception, e:
-                logger.warn("Error setting %s:\n%s",self.name, e)
+            self.set_index(index_array[self.beat.id])
                 
     def mark_similar(self,*args,**kwargs):
         pass
