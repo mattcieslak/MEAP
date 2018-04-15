@@ -193,7 +193,7 @@ class TimePoint(HasTraits):
         elif self.point_type == "geom_trick":
             r_idx = unmarked_beat.r.index
             c_idx = unmarked_beat.c.index
-            if not r_idx <= c_idx:
+            if not r_idx < c_idx:
                 unmarked_beat.b.needs_attention = True
                 return self
             roi = ts[r_idx:c_idx]

@@ -206,7 +206,6 @@ class MovingEnsembler(HasTraits):
 
         n_beats = len(peak_times)
         n_beats_averaged = np.zeros(n_beats)
-        self.physiodata.mea_hr = np.zeros(n_beats)
 
         # If the window secs is set to 0 use the
         if window_secs == 0.:
@@ -214,7 +213,6 @@ class MovingEnsembler(HasTraits):
             for signal in self.physiodata.contents:
                 setattr(self.physiodata, "mea_%s_matrix" % signal,
                     getattr(self.physiodata,"%s_matrix" % signal).copy())
-            self.physiodata.mea_hr = raw_hr
             logger.info("Using raw beats instead of moving ensembling")
             return
 
@@ -254,8 +252,60 @@ class MovingEnsembler(HasTraits):
                 getattr(self.physiodata, "mea_%s_matrix" % signal)[beatnum] = \
                     (getattr(self.physiodata,"%s_matrix" % signal)[matrix_slice] * \
                         weights.reshape(-1,1)).sum(0)
-            if self.mea_smooth_hr:
-                self.physiodata.mea_hr[beatnum] = (raw_hr[matrix_slice] * \
+
+        if self.mea_smooth_hr:
+            self._update_mea_hr()
+
+
+    def _update_mea_hr(self):
+        raw_hr = self.mea_beat_train.get_heartrate()
+        peak_times = self.physiodata.peak_times
+        window_secs = self.physiodata.mea_window_secs
+        weight_function = self.physiodata.mea_func_name
+        power = self.physiodata.mea_exp_power
+        weighting_direction = self.physiodata.mea_weight_direction
+
+        if window_secs == 0.:
+            self.physiodata.mea_hr = raw_hr
+            return
+
+        n_beats = len(peak_times)
+        n_beats_averaged = np.zeros(n_beats)
+        self.physiodata.mea_hr = np.zeros(n_beats)
+
+        # Loop over beats
+        for beatnum in range(n_beats):
+            beat_time = peak_times[beatnum]
+            # establish the time window
+            if weighting_direction == "before":
+                start_time = beat_time -window_secs
+                end_time = beat_time + 0.0005
+            elif weighting_direction == "after":
+                start_time = beat_time -0.0005 # be sure to include this beat
+                end_time = beat_time + window_secs
+            elif weighting_direction == "symmetric":
+                start_time = beat_time -window_secs/2.
+                end_time = beat_time + window_secs/2.
+            else:
+                raise ValueError("Impossible")
+
+            contained_beats = np.flatnonzero(
+                    (peak_times > start_time) & (peak_times < end_time))
+            n_beats_averaged[beatnum] = len(contained_beats)
+            matrix_slice = slice(contained_beats[0],contained_beats[-1],None)
+
+            # Get the neighbor weighting function
+            if weight_function == "flat":
+                weights = np.ones(n_beats,dtype=np.float) / n_beats_averaged
+            elif weight_function in ("linear", "exponential"):
+                seconds_away = np.abs(peak_times[matrix_slice] - beat_time )
+                neighbor_nearness = 1 - seconds_away / window_secs
+                if weight_function == "exponential":
+                    neighbor_nearness = neighbor_nearness ** power
+                weights = neighbor_nearness / neighbor_nearness.sum()
+            beat_time = peak_times[beatnum]
+
+            self.physiodata.mea_hr[beatnum] = (raw_hr[matrix_slice] * \
                                                             weights).sum()
 
     def _n_neighbor_moving_ensemble(self):
@@ -425,6 +475,7 @@ class MovingEnsembler(HasTraits):
             self.edit_listening = True
             self.on_trait_change(self.update_labeled,
                     "mea_beat_train.beats.point_updated")
+        self._update_mea_hr() # Use the most up-to-date hr info
         self.mea_beat_train.calculate_physio()
         self.update_plots()
 
