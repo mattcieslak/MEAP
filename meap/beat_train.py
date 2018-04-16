@@ -528,6 +528,8 @@ class ModeKarcherBeatTrain(BeatTrain):
         self.pep = np.array([pt.get_pep() for pt in self.beats])
         self.b_plot_data.set_data("pep", self.physiodata.b_indices \
                                   - self.physiodata.dzdt_pre_peak)
+        self.physiodata.lvet = np.array([pt.get_lvet() for pt in self.beat_train.beats])
+        self.physiodata.pep = self.physiodata.b_indices - self.physiodata.dzdt_pre_peak
         
             
         
