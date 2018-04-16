@@ -269,6 +269,7 @@ class KarcherTimePoint(TimePoint):
         """
         If all we have is a time, adjust the index and value to match
         """
+        index = int(index)
         ts = self.beat.dzdt_signal
         index_array = getattr(self.physiodata,"karcher_b_indices")
         self.time = float(index) - self.offset
