@@ -11,6 +11,7 @@ class MEAPGreeter(HasTraits):
     preproc = Button("Preprocess")
     analyze = Button("Analyze")
     configure = Button("Configure MEAP")
+    batch_spreadsheet = Button("Create Batch Spreadsheet")
     register_dZdt = Button("Batch Register dZ/dt")    
     
     def _preproc_fired(self):
@@ -28,6 +29,11 @@ class MEAPGreeter(HasTraits):
         batch = BatchGroupRegisterDZDT()
         batch.configure_traits()
         
+    def _batch_spreadsheet_fired(self):
+        from meap.make_batch_spreadsheet import BatchFileTool
+        bft = BatchFileTool()
+        bft.configure_traits()
+        
     def _configure_fired(self):
         print "Not implemented yet!"
         
@@ -35,6 +41,7 @@ class MEAPGreeter(HasTraits):
         VGroup(
             Item("preproc"),
             Item("analyze"),
+            Item("batch_spreadsheet"),
             Item("register_dZdt"),
             Item("configure"),
             show_labels=False
