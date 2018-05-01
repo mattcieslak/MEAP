@@ -54,6 +54,7 @@ class BeatTrain(HasTraits):
     use_trimmed_co = DelegatesTo("physiodata")
     censored_secs_before = DelegatesTo("physiodata")
     b_order_plots = Button(label="Change Editor Layout")
+    interactive = Bool(True)
 
     available_widgets = DelegatesTo('physiodata',
         editor=SetEditor(
@@ -122,6 +123,7 @@ class BeatTrain(HasTraits):
         return self.subset.shape[0]
 
     def calculate_outliers(self):
+        if not self.interactive: return
         logger.info("Extracting features for outlier detection")
         feature_grabber = outlier_feature_function(self.physiodata.contents)
 
@@ -180,16 +182,18 @@ class BeatTrain(HasTraits):
     @on_trait_change("beats.point_updated")
     def point_hand_labeled(self):
         logger.info("beats.point_updated")
-        self.update_param_plot()
-        self.calculate_outliers()
+        if self.interactive:
+            self.update_param_plot()
+            self.calculate_outliers()
 
     def set_beats(self,beats):
         self.beats = beats
         # The ICA model is no longer fitted to these beats
         self.fitted = False
-        if self.outlier_plot is not None:
-            self.update_param_plot()
-            self.calculate_outliers()
+        if self.interactive:
+            if self.outlier_plot is not None:
+                self.update_param_plot()
+                self.calculate_outliers()
 
 
     def outlier_plot_item_selected(self):
@@ -280,6 +284,7 @@ class BeatTrain(HasTraits):
             setattr(self.physiodata, point+"_indices",
                     -np.ones(self.physiodata.peak_times.shape,dtype=np.int))
 
+        show_progressbar = show_progressbar and self.interactive
         t0=time.time()
         if show_progressbar:
             progress = ProgressDialog(title="Marking Heartbeats", min=0,
@@ -447,7 +452,7 @@ class BeatTrain(HasTraits):
     )
 
     def _b_order_plots_fired(self):
-        self.edit_traits(view="panel_order_view")
+        self.edit_traits(view="panel_order_view",kind="livemodal")
 
 class MEABeatTrain(BeatTrain):
     # stacks of waveforms
@@ -523,6 +528,8 @@ class ModeKarcherBeatTrain(BeatTrain):
         self.pep = np.array([pt.get_pep() for pt in self.beats])
         self.b_plot_data.set_data("pep", self.physiodata.b_indices \
                                   - self.physiodata.dzdt_pre_peak)
+        self.physiodata.lvet = np.array([pt.get_lvet() for pt in self.beat_train.beats])
+        self.physiodata.pep = self.physiodata.b_indices - self.physiodata.dzdt_pre_peak
         
             
         

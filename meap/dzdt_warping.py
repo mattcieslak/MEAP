@@ -36,11 +36,14 @@ from scipy.cluster.hierarchy import fcluster
 
 def fisher_rao_dist(psi1, psi2):
     """ Equation 4 from Kurtek 2017"""
-    return np.nan_to_num(np.arccos(np.inner(psi1,psi2)))
+    return np.nan_to_num(np.arccos(np.inner(psi1.squeeze(),psi2.squeeze())))
 
 # Rescales the cluster mean to be on the great circle
 def rescale_cluster_mean(cluster_mean):
-    densities = cluster_mean **2
+    densities = cluster_mean.squeeze() **2
+    densities_sum = densities.sum()
+    if densities_sum <= 0:
+        densities = np.ones_like(cluster_mean)
     scaled_densities = densities / densities.sum()
     return np.sqrt(scaled_densities)
 
@@ -362,7 +365,7 @@ class GroupRegisterDZDT(HasTraits):
         
                 # If there is only a single SRD in this cluster, it is the mean
                 if cluster_id_mask.sum() == 1:
-                    cluster_means.append(cluster_srds)
+                    cluster_means[cluster_id] = cluster_srds
                     continue
         
                 # Run group registration to get Karcher mean
@@ -416,7 +419,7 @@ class GroupRegisterDZDT(HasTraits):
         
             # If there is only a single SRD in this cluster, it is the mean
             if cluster_id_mask.sum() == 1:
-                cluster_means.append(cluster_funcs)
+                cluster_means[cluster_id] = cluster_funcs
                 continue
         
             # Run group registration to get Karcher mean
@@ -443,7 +446,7 @@ class GroupRegisterDZDT(HasTraits):
         final_modes = []
         for final_id, orig_id in enumerate(cluster_ids):
             final_assignments[assignments==orig_id] = final_id
-            final_modes.append(cluster_means[orig_id])
+            final_modes.append(cluster_means[orig_id].squeeze())
         
         self.mode_dzdt_karcher_means = np.row_stack(final_modes)
         self.mode_cluster_assignment = final_assignments

@@ -537,10 +537,17 @@ class HeartBeat(HasTraits):
         return self.get_pep() / self.get_lvet()
 
     def _get_dZdt_max(self):
-        return self.dzdt_signal[self.b.index:self.x.index].max()
+        try:
+            return self.dzdt_signal[self.b.index:self.x.index].max()
+        except Exception:
+            return self.dzdt_signal.max()
 
     def _get_resp_corrected_dZdt_max(self):
-        return self.resp_corrected_dzdt_signal[self.b.index:self.x.index].max()
+        try:
+            return self.resp_corrected_dzdt_signal[self.b.index:self.x.index].max()
+        except Exception:
+            return self.resp_corrected_dzdt_signal.max()
+
 
     def _get_kubicek_sv(self, rc=False):
         # electrode distance from the subject:

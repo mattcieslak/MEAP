@@ -23,6 +23,9 @@ has_ui = False
 if sys.platform.startswith("linux"):
     if os.getenv("DISPLAY"):
         has_ui = True
+elif sys.platform == "darwin":
+    has_ui = True
+    
 
 if has_ui:
     try:

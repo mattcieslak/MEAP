@@ -106,8 +106,9 @@ button at the right of the screen to begin preprocessing.
    :alt: import data
    :align: center
 
-Once your Aqcknowledge or matlab file is imported you'll need to let MEAP know which 
-channel contains each data source. This is achieved by specifying the data contained 
+Once your Aqcknowledge file is imported you'll need to let MEAP know which 
+channel contains each data source. If loading from a mea.mat file, the channels have
+already been stored. For Acqknowledge files, specify the data contained 
 within each channel using this GUI: 
 
 .. figure:: _static/import_the_channels.png
@@ -127,9 +128,10 @@ should have the following channels mapped:
 	
 	1. **ECG** - Electrocardiogram data 
 	2. **z0** - Magnitude of impedance 
-	3. **bp** - Blood pressure (or systolic and diastolic)
-	4. **dzdt** - First derivative of impedance magnitude (used to calculate MAP and TPR).
+	3. **bp** - Blood pressure (or systolic and diastolic; optional) 
+	4. **dzdt** - First derivative of impedance magnitude.
 	5. **respiration**- breath data (optional)
+	6. **doppler** - Cardiac doppler radar signal (optional)
 	
 
 This window also contains a tab in which you can specify or correct the participant's
@@ -271,7 +273,7 @@ Once you are satisfied with the regions to be removed, select *OK*.
 
 This is a good time to save your work. To do so, copy the *File* path and paste it into 
 the *Outfile* field and change the file type from ``.acq`` to ``.mea.mat``, then click
-**Save .meap file**. 
+**Save .meap file**. You could also provide any file name as long as it ends with .mea.mat.
 
 
 Step 4: Processing Respiration Data
@@ -326,7 +328,15 @@ Processed respiration using dz/dt waveform:
    :alt: respiration 3
    :align: center 
 
-After respiration has been processed, simply close the window and proceed to the next step. 
+After respiration has been processed, simply close the window and proceed to the next step.
+
+Respiration correction is a very useful preprocessing step. Consider the Kubicek equation
+for calculating stroke volume. The Z0 term is directly included, which means that
+respiration-related signals will be incorporated in stroke volume and impact all measurements
+that use stroke volume. These include cardiac output and TPR. One remedy to respiration 
+artifact is ensemble averaging. However, unless the same portions of the respiratory cycle
+are included in each time window, respiration-driven changes will only add to your model's
+noise term. 
 
 Step 5: Detecting R-Peaks 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -340,8 +350,10 @@ the next step is to detect each heartbeat. Click on the **Detect QRS Complexes**
    :align: center
 
 
-MEAP automatically detects each R-peak using a modified Pan-Tomkins algoritm (for more 
-information on the Pan-Tompkins method see :ref:`beat-detector`) 
+MEAP automatically detects each R-peak using a modified Pan-Tomkins algorithm (for more 
+information on the Pan-Tompkins method see :ref:`beat-detector`). There are other options
+for QRS detection that work better for data collected in an MRI scanner. However, all methods
+share the same basic editing tools.
 
 Each R peak on the ECG wave is marked with a black square.
 
@@ -409,6 +421,44 @@ left-click button on your mouse.
 .. Note:: For more information on the Pan-Tompkins method and parameter options, 
 	see the :ref:`beat-detector` section of this documentation. 
 
+Step 5a: Finding QRS complexes in the MRI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ECG signal is much noisier in the MRI scanning environment. This is due to a number
+of factors, including magnetohydrodynamics (the effect of the magnetic field on blood)
+and RF noise from the scanner. One option is to use a second signal that captures some
+aspect of the cardiac cycle that is less impacted by scanner noise, such as dZ/dt or a 
+pulse oximiter. We call this Multi Signal Detection. To enable Multi Signal Detection,
+check this box:
+
+.. figure::  _static/enable_multisignal.png
+   :scale: 80%
+   :alt: Enable multisignal detection
+   :align: center
+
+Select which signal you want to use as the secondary cardiac cycle indicator
+
+.. figure::  _static/multisignal_parameters.png
+   :scale: 80%
+   :alt: Choose multisignal source
+   :align: center
+
+and indicate how to filter this signal. Ideally there should be a single local
+maximum corresponding to each heart beat. The secondary signal gets low-pass
+filtered according to these options and peaks are identified. Then a search
+window is built around each peak and an attempt is made to identify a QRS
+complex within each search window:
+
+.. figure::  _static/multisignal.png
+   :scale: 80%
+   :alt: Choose multisignal source
+   :align: center
+
+The search windows are light purple and highlight the area around peaks in
+the secondary signal. In this instance dZdt is the secondary signal, so the 
+window is placed in front of its peaks (because the QRS precedes the peak
+of dZ/dt). QRS complexes identified in this way can still be edited using
+the same clicking tools described above.
 
 Step 6: Marking Custom Points
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -511,6 +561,21 @@ Residuals:
 
 Ideally, residuals will be random, producing no clear pattern in the image. 
 
+
+Identifying B-Points
+~~~~~~~~~~~~~~~~~~~~~
+
+The most time-consuming and error-prone part of ICG analysis is identifying 
+B-Points. This is a critical time for determining systolic intervals and
+therefore great care should be taken when marking this point. 
+
+MEAP provides two methods for automating this process. The first, an AdaBoost-based
+B-Point classifier was described in our 2018 Psychophysiology paper. This approach
+works very well, but requires manually labeling hundreds of points per recording
+to train the classifier. The second is unpublished, but relies on time series registration
+to "warp" B-points from a set of ICG shape templates. This method is much faster and 
+has nice theoretical properties. 
+
 **Training the B-Point Classifier**
 
 B-points are notoriously difficult to mark as they are neither a maximum or a minimum. Thus, 
@@ -569,11 +634,93 @@ pressure data was censored at that point. Select **Apply b-point classifier**.
    :alt: Applying classifier
    :align: center
    
+**Using SRVF-based dZ/dt registration**
+
+Starting at MEAP version 1.5 you can use SRVF-based timeseries registration. You can
+think of this method as similar to diffeomorphic spatial normalization used in 
+neuroimaging group studies. Instead of manually identifying a specific region in each
+brain, you can warp all the brains to a template, draw the region on the template, then
+inverse warp the region into each individual brain. Here we're doing the same thing with
+dZ/dt waveforms. 
+
+You can access this tool by clicking **Register dZ/dt** from the pipeline window. This process
+involves 4 steps. First, a single template is created from a randomly-selected subset of 
+all heartbeats. Next, all heartbeats are registered to this initial template. Third, the
+warps to the initial template are used to cluster individual heartbeats into similarly-shaped
+subsets. A template for each of these shape "modes" is created. Finally, the user hand-marks
+B-Points on each mode template and these are inverse-warped to each heartbeat.
+
+To create an initial shape template, or Karcher Mean, of your dZ/dt signals you will use
+the widgets in the left half of this screen:
+   
+.. figure::  _static/pre_karcher.png
+   :scale: 80%
+   :alt: Build template
+   :align: center
+
+It is important to decide whether you want to use moving ensembled dZ/dt signals or
+the original raw signals. Original signals will vary in shape depending on the 
+part of the respiratory cycle in which they occurred and will also have pronounced
+pre-load and after-load effects on the locations of the B-Points. Also, data with 
+abrupt spikes can fail to produce a meaningful Karcher Mean. If your data has spikes,
+we recommend filtering it in AcqKnowledge and/or using the B-Spline smoothing option 
+here. 
+
+Only a portion of the dZ/dt waveform is used for this procedure. Using the entire waveform
+causes the template-building process to be incredibly time-consuming and also produces
+poor results during clustering. You select the portion of the dZ/dt signal that will
+be included in this analysis in the Epoch Start Time and Epoch End Time fields. Lambda
+controls how much the time series are allowed to deform. The number of beats used and
+the maximum number of template-building iterations can be specified here. Once you
+are satisfied, click "Calculate Karcher Mean".
+
+After a few minutes the plots will update and the "Warp All" button will be enabled.
+   
+.. figure::  _static/post_karcher.png
+   :scale: 80%
+   :alt: Warp All
+   :align: center
+   
+The updated plots will look something like the above. You will notice that the Karcher
+Mean (dark blue line) has higher amplitude than the global ensemble average (light
+blue line) and contains sharper features.  These are all benefits of using an elastic
+time series approach. Click "Warp All" and all of your heartbeats will be registered
+to this initial Karcher Mean. The bottom two plots will show the individual dZ/dt signal
+in red after it is aligned to the Karcher Mean in blue. The image plot on the right
+is a heat map of the aligned dZ/dt signals. 
+
+Once all beats have been aligned to the initial Karcher Mean, you can cluster heart
+beats based on the similarity of their warps using the widgets in the right panel.
+We use the distance metrics and general procedure described in Kurtek 2017 to cluster
+heart beats. Choose the number of clusters and the maximum number of K-means iterations.
+Once satisfied with your choices, click "Detect Modes". This will take a long time to run.
+If you are using MacOS, it will take much longer than any other operating system. Once 
+completed, the "Score Modes" button will be enabled.
+
+Clicking the "Score Modes" button will open an editor like the one below:
+
+.. figure::  _static/mode_editor.png
+   :scale: 60%
+   :alt: Score Modes
+   :align: center
+
+There will be one beat listed in the left panel for each mode you requested. Clicking
+on that beat will show what that cluster's template dZ/dt looks like. The B-Point times
+are plotted in the upper-right panel. By editing the B-Points, the corresponding time in
+each original beat will be updated. Manually identify te B-Point on each Mode and the inverse
+warp to the original beats will be used to identify the corresponding point on the
+original waveform.
+
+Once you're satisfied, you can visit the "Compute Moving Ensembles" window again to edit
+individual B-Point placements.
+
 
 Step 8: Process fMRI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This feature not yet functional, but coming soon. 
+
+
 
 
 Step 9: Save Your Preprocessed File (Again!)
