@@ -513,7 +513,7 @@ class MovingEnsembler(HasTraits):
             beat_viewer = MEABeatTrain(physiodata=self.physiodata)
             beats = [self.mea_beat_train.beats[n] for n in selection]
             beat_viewer.set_beats(beats)
-            beat_viewer.edit_traits(kind="livemodal")
+            beat_viewer.edit_traits()
     def _selected_beats_default(self):
         return MEABeatTrain(physiodata=self.physiodata)
 

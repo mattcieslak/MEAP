@@ -452,7 +452,7 @@ class BeatTrain(HasTraits):
     )
 
     def _b_order_plots_fired(self):
-        self.edit_traits(view="panel_order_view")
+        self.edit_traits(view="panel_order_view",kind="livemodal")
 
 class MEABeatTrain(BeatTrain):
     # stacks of waveforms
