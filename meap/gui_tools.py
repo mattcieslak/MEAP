@@ -25,6 +25,8 @@ if sys.platform.startswith("linux"):
         has_ui = True
 elif sys.platform == "darwin":
     has_ui = True
+elif sys.platform == "win32":
+    has_ui = True
     
 
 if has_ui:
