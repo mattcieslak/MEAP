@@ -5,6 +5,8 @@ from time import time, sleep
 import sys,os
 from traits.api import HasTraits, Button, Instance
 from meap import __version__
+# Force import of compiled pyd
+from srvf_register import dynamic_programming_q2
 
 
 class MEAPGreeter(HasTraits):

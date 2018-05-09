@@ -23,7 +23,7 @@ def normalize(ts):
 def legendre_detrend(signal,polort):
     X = np.vstack([ \
         legendre(x)(
-            np.linspace(0,1,signal.shape[0])) for x in range(polort)
+            np.linspace(-1,1,signal.shape[0])) for x in range(polort)
         ]
     ).T
     fit = np.linalg.lstsq(X,signal)
