@@ -453,7 +453,7 @@ class FMRITool(HasTraits):
                 cardiac_fits[nvox] = np.dot(whole_design, reg.coef_ * cardiac_mask)
                 resp_fits[nvox] = np.dot(whole_design, reg.coef_ * resp_mask)
                 ix_fits[nvox] = np.dot(whole_design, reg.coef_ * ix_mask)
-                drift_fits[nvox] = np.dot(whole_design, reg.coef_ * ix_mask)
+                drift_fits[nvox] = np.dot(whole_design, reg.coef_ * detrend_mask)
                 
             if self.write_4d_nuisance:
                 fitts[nvox] = np.dot(whole_design, reg.coef_)
