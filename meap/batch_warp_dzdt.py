@@ -12,9 +12,62 @@ import time
 from meap.gui_tools import MEAPView, messagebox
 from meap.io import load_from_disk, PhysioData
 from glob import glob
+import multiprocessing
 
 import logging
 logger = logging.getLogger(__name__)
+
+def process_physio_file((physio_file, output_file, srvf_lambda, srvf_max_karcher_iterations,
+        srvf_update_min, srvf_karcher_mean_subset_size, srvf_use_moving_ensembled,
+        bspline_before_warping, dzdt_num_inputs_to_group_warping, srvf_t_min,
+        srvf_t_max, n_modes)):
+    
+    from meap.dzdt_warping import GroupRegisterDZDT
+    from meap.io import load_from_disk
+    
+    # If file exists, don't overwrite
+    import os
+    if os.path.exists(output_file):
+        return True
+    
+    # In case an OMP version is being used
+    os.environ['OMP_NUM_THREADS'] = '1'
+    
+    # Load the input data
+    phys = load_from_disk(physio_file)
+    
+    # Check if waveform points have been enabled
+    if 0.0 in (phys.ens_avg_c_time, phys.ens_avg_b_time):
+        raise ValueError("Label Waveform points is required")
+
+    # Check if moving ensembles are to be used. If so, they must exist
+    if srvf_use_moving_ensembled and phys.mea_dzdt_matrix.size == 0:
+        raise ValueError("Moving ensembles are not available")
+    
+    reg = GroupRegisterDZDT(physiodata=phys)
+    reg.srvf_lambda = srvf_lambda
+    reg.srvf_max_karcher_iterations= srvf_max_karcher_iterations
+    reg.srvf_update_min = srvf_update_min
+    reg.srvf_karcher_mean_subset_size = srvf_karcher_mean_subset_size
+    reg.srvf_use_moving_ensembled = srvf_use_moving_ensembled
+    reg.bspline_before_warping = bspline_before_warping
+    reg.dzdt_num_inputs_to_group_warping = dzdt_num_inputs_to_group_warping
+    reg.srvf_t_min = srvf_t_min
+    reg.srvf_t_max = srvf_t_max
+
+    # Calculate the initial karcher mean
+    reg.calculate_karcher_mean()
+    reg.align_all_beats_to_initial()
+
+    # Find the modes
+    reg.n_modes = n_modes
+    reg.detect_modes()
+    
+    reg.physiodata.save(output_path)
+
+    # produces 2 files
+    return os.path.abspath(output_path)
+    
 
 class FileToProcess(HasTraits):
     input_file = File()
@@ -54,14 +107,22 @@ class BatchGroupRegisterDZDT(HasTraits):
     dzdt_num_inputs_to_group_warping = DelegatesTo("physiodata")
     srvf_t_min = DelegatesTo("physiodata")
     srvf_t_max = DelegatesTo("physiodata")
+    n_modes = DelegatesTo("physiodata")
 
     # For saving outputs
+    num_cores = Int(1)
     file_suffix = Str()
     overwrite = Bool(False)
     input_directory = Directory()
     output_directory = Directory()
     files = List(Instance(FileToProcess))
 
+    b_run = Button(label="Run")
+    
+    def __init__(self,**traits):
+        super(BatchGroupRegisterDZDT, self).__init__(**traits)
+        self.num_cores = multiprocessing.cpu_count()
+        
     def _physiodata_default(self):
         return PhysioData()
 
@@ -74,6 +135,11 @@ class BatchGroupRegisterDZDT(HasTraits):
     def params_edited(self):
         self._input_directory_changed()
         
+    def _num_cores_changed(self):
+        num_cores = multiprocessing.cpu_count()
+        
+        if self.num_cores < 1 or self.num_cores > num_cores:
+            self.num_cores = multiprocessing.cpu_count()
         
     def _input_directory_changed(self):
         potential_files = glob(self.input_directory +"/*mea.mat")
@@ -93,6 +159,16 @@ class BatchGroupRegisterDZDT(HasTraits):
     def _b_run_fired(self):
         files_to_run = [f for f in self.files if not f.finished]
         
+        logger.info("Processing %d files using %d cpus", len(files_to_run), self.num_cores)
+        
+        pool = multiprocessing.Pool(self.num_cores)
+        
+        arglist = [(f.input_file, f.output_file, self.srvf_lambda, self.srvf_max_karcher_iterations,
+        self.srvf_update_min, self.srvf_karcher_mean_subset_size, self.srvf_use_moving_ensembled,
+        self.bspline_before_warping, self.dzdt_num_inputs_to_group_warping, self.srvf_t_min,
+        self.srvf_t_max, self.n_modes) for f in files_to_run]
+        pool.map(process_physio_file, arglist)
+        
     
 
     mean_widgets =VGroup(
@@ -106,6 +182,9 @@ class BatchGroupRegisterDZDT(HasTraits):
             Item("dzdt_num_inputs_to_group_warping",
                     label="Template uses N beats"),
             Item("srvf_max_karcher_iterations", label="Max Iterations"),
+            Item("num_cores"),
+            Item("b_run", show_label=False)
+            
     )
 
     traits_view = MEAPView(

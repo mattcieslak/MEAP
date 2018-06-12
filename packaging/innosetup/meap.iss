@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "MEAP"
-#define MyAppVersion "1.2.1"
+#define MyAppVersion "1.5.3"
 #define MyAppPublisher "UCSB Department of Psycholgical and Brain Sciences"
 #define MyAppURL "http://meap.readthedocs.io/en/latest/"
 #define MyAppExeName "MEAP.exe"

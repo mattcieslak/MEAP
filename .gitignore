@@ -20,3 +20,4 @@ build
 dist
 *.swp
 *.dmg
+*.exe

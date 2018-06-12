@@ -51,7 +51,7 @@ class BatchFileTool(HasTraits):
     output_directory = Directory()
     files = List(Instance(FileToProcess))
     spreadsheet_file = File(exists=False)
-    save = Button("Save Spreadsheet")
+    b_save = Button("Save Spreadsheet")
 
     def _input_file_extension_changed(self):
         self._input_directory_changed()
@@ -89,6 +89,7 @@ class BatchFileTool(HasTraits):
             row['outfile'] = f.output_file
             rows.append(row)
         df = pd.DataFrame(rows)
+        logger.info("Writing spreadsheet to %s",  self.spreadsheet_file)
         df.to_excel(self.spreadsheet_file, index=False)
         
     
@@ -99,7 +100,7 @@ class BatchFileTool(HasTraits):
             Item("output_directory"),
             Item("file_suffix"),
             Item("spreadsheet_file"),
-            Item("save",show_label=False)
+            Item("b_save",show_label=False)
     )
 
     traits_view = MEAPView(
