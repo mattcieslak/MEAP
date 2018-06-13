@@ -63,10 +63,12 @@ def process_physio_file((physio_file, output_file, srvf_lambda, srvf_max_karcher
     reg.n_modes = n_modes
     reg.detect_modes()
     
-    reg.physiodata.save(output_path)
+    abs_out = os.path.abspath(output_file)
+    reg.physiodata.save(abs_out)
 
     # produces 2 files
-    return os.path.abspath(output_path)
+    logger.info("saved %s", abs_out)
+    return os.path.abspath(abs_out)
     
 
 class FileToProcess(HasTraits):
@@ -148,7 +150,9 @@ class BatchGroupRegisterDZDT(HasTraits):
         
         # Check if the output already exists
         def make_output_file(input_file):
-            return input_file[:-len(".mea.mat")] + self.file_suffix
+            suffix = os.path.split(os.path.abspath(input_file))[1]
+            suffix = suffix[:-len(".mea.mat")] + self.file_suffix
+            return self.output_directory + "/" + suffix
         
         self.files = [
             FileToProcess(input_file = f, output_file=make_output_file(f)) \
@@ -182,6 +186,7 @@ class BatchGroupRegisterDZDT(HasTraits):
             Item("dzdt_num_inputs_to_group_warping",
                     label="Template uses N beats"),
             Item("srvf_max_karcher_iterations", label="Max Iterations"),
+            Item("n_modes"), Item("srvf_t_min"), Item("srvf_t_max"),
             Item("num_cores"),
             Item("b_run", show_label=False)
             
