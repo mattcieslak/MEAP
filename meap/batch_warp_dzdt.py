@@ -142,8 +142,8 @@ class BatchGroupRegisterDZDT(HasTraits):
         
         if self.num_cores < 1 or self.num_cores > num_cores:
             self.num_cores = multiprocessing.cpu_count()
-        
-    def _input_directory_changed(self):
+            
+    def _configure_io(self):
         potential_files = glob(self.input_directory +"/*mea.mat")
         potential_files = [f for f in potential_files if not \
                            f.endswith("_aligned.mea.mat") ]
@@ -158,7 +158,15 @@ class BatchGroupRegisterDZDT(HasTraits):
             FileToProcess(input_file = f, output_file=make_output_file(f)) \
             for f in potential_files
         ]
+    
+    def _output_directory_changed(self):
+        self._configure_io()
         
+    def _file_suffix_changed(self):
+        self._configure_io()
+        
+    def _input_directory_changed(self):
+        self._configure_io()
         
     def _b_run_fired(self):
         files_to_run = [f for f in self.files if not f.finished]
