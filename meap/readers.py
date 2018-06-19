@@ -331,7 +331,12 @@ class MatfileImporter(Importer):
                 fail(contents + " appears multiple times in the data")
                 
             # Extract the array, except for the last 10 samples
-            data_array = self.m["data"][:-10,col]
+            if "data" in self.m:
+                data_array = self.m["data"][:-10,col]
+            elif "physioDat" in self.m:
+                data_array = self.m["physioDat"][:-10,col]
+            else:
+                raise ValueError("Unrecognized matfile format")
             
             # Downsample the signal if sampling_rate > 1 kHz
             if contents == "mri_trigger":
