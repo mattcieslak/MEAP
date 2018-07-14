@@ -29,7 +29,8 @@ class LabelStatusColumn(ObjectColumn):
 
 beat_table = TableEditor(
     columns =
-    [LabelStatusColumn(name="id",editable=False)],
+    [LabelStatusColumn(name="id",editable=False), 
+     ObjectColumn(name="mode_cluster_assignment",editable=False)],
     auto_size  = True,
     show_toolbar = True,
     edit_view="traits_view",
