@@ -59,6 +59,7 @@ heuristic_table = TableEditor(
 class HeartBeat(HasTraits):
     physiodata=Instance(PhysioData)
     id=Either(None,CInt)
+    mode_cluster_assignment=Either(None,CInt)
     # Signals from which to derive points
     dzdt_signal = Array
     resp_corrected_dzdt_signal = Array
@@ -200,6 +201,11 @@ class HeartBeat(HasTraits):
         self._set_default_signals()
         self._set_default_times()
         self._set_points()
+        if self.id is not None and self.id > -1:
+            try:
+                self.mode_cluster_assignment = self.physiodata.mode_cluster_assignment[self.id]
+            except Exception, e:
+                self.cluster_mode_assignment = -1
 
 
     def _set_default_signals(self):
