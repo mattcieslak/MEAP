@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import multiprocessing
 from meap.gui_tools import (MEAPView, VGroup, Item, ImageResource,
                             SplashScreen, meap_splash)
 from time import time, sleep
@@ -51,6 +52,7 @@ class MEAPGreeter(HasTraits):
     )
     
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     print "Welcome to MEAP!"
     print "================"
     print ""
