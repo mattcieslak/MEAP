@@ -216,8 +216,11 @@ class TimePoint(HasTraits):
                         bnum, self.name)
             unmarked_point.needs_attention = True
         unmarked_point.set_index(t_ind)
-        index_array = getattr(self.physiodata, self.name+"_indices", None)
-        assert index_array[unmarked_beat.id] == t_ind
+        
+        # If this timepoint is tracked by beat id, 
+        if unmarked_beat.id is not None:
+            index_array = getattr(self.physiodata, self.name+"_indices", None)
+            assert index_array[unmarked_beat.id] == t_ind
         return True
 
     def set_time(self,time):
