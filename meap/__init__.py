@@ -19,7 +19,7 @@ DEFAULT_SAMPLING_RATE=1000
 SEARCH_WINDOW=30 #samples
 BLOOD_RESISTIVITY=135. # Ohms cm
 n_regions=0
-__version__= "1.5.3"
+__version__= "1.5.3a"
 
 # MEAP only knows what to do with a couple of signals
 SUPPORTED_SIGNALS=["ecg", "ecg2", "dzdt", "z0", "bp",
